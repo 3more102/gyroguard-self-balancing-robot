@@ -10,6 +10,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown sensor data never authorizes forward motion or an unverified turn
+- No blind reverse commands; if neither side is proven clear, translation remains stopped
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
@@ -88,8 +89,9 @@ CI runs both host test suites and compiles the Uno and classic Nano targets. It 
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
-- Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
-- After an avoidance turn, a fresh forward measurement is required before cruise resumes.
+- Autonomous forward travel waits for the center servo to settle and for a valid range at or beyond OBSTACLE_CLEAR_MM. Invalid or marginal readings hold translation at zero while balancing remains active.
+- After an avoidance turn, the servo settles and a fresh clear forward measurement is required before cruise resumes.
+- If both side scans are blocked or uncertain, the robot holds position. It does not reverse without rear-facing sensing.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
@@ -100,14 +102,14 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown or invalid range readings inhibit translation instead of being interpreted as clear space.
+3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. A side is selectable only with a valid reading at or beyond OBSTACLE_CLEAR_MM. If neither side is proven clear, translation stays at zero. The balance loop continues during all scans and holds.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
-- A single forward scanner does not provide full 360-degree perception.
+- A single forward scanner does not provide full 360-degree perception or rear clearance; GyroGuard therefore never reverses blindly.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
