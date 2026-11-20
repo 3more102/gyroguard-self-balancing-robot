@@ -16,6 +16,7 @@ private:
   uint32_t lastSampleMs_;
   uint16_t filteredMillivolts_;
   bool initialized_;
+  bool hasValidSample_;
   bool sampleValid_;
   bool lowBattery_;
 };
