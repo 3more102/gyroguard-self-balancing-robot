@@ -79,7 +79,7 @@ Arduino CLI example:
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance. Forward travel remains inhibited until a fresh, valid front range is available.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
-- A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- An IMU initialization/read failure, excessive tilt or control-timing fault latches the motor driver off. Power-cycle after correcting the cause. A sonar range failure instead inhibits autonomous forward travel while balancing remains active.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
