@@ -44,23 +44,13 @@ The interesting part is not simply making the robot move. It is coordinating est
 
 The balance loop is the priority. Navigation can request a change in speed or turning direction, but it must never pause the attitude controller.
 
-```mermaid
-flowchart TD
-    IMU["MPU-6050<br/>Accelerometer + Gyroscope"] --> F["Complementary Filter"]
-    F --> P["Pitch Estimate"]
-    P --> B["Balance PID<br/>200 Hz"]
-    E["Wheel Encoders"] --> V["Velocity Controller<br/>50 Hz"]
-    V --> T["Pitch Target"]
-    T --> B
-    U["HC-SR04 + SG90"] --> R["Range Validation"]
-    R --> N["Obstacle Avoidance"]
-    N --> V
-    BAT["2S Battery Monitor"] --> G["Travel Interlock"]
-    G --> N
-    B --> D["TB6612FNG"]
-    D --> M["Left + Right Motors"]
-    SAFE["Tilt / IMU / Timing Guards"] --> D
-```
+<div align="center">
+
+<img src="assets/gyroguard-architecture.svg" alt="GyroGuard system architecture flowchart: sensors, estimation, control, obstacle navigation, safety interlocks, motor driver and two wheels" width="100%">
+
+**Figure 1 — GyroGuard control and navigation architecture**
+
+</div>
 
 ### The control rhythm
 
