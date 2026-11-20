@@ -26,8 +26,11 @@ where:
 - \(\theta\): body pitch from upright, positive when the top of the robot leans forward (rad)
 - \(\dot{\theta}\): pitch rate (rad/s)
 - \(u\): average terminal voltage applied to each motor, positive for forward wheel torque (V)
+- \(\phi=s/r\): wheel rotation angle, positive for forward rolling (rad)
 
 At the upright equilibrium, \(s=\dot{s}=\theta=\dot{\theta}=u=0\). The controller's common-mode motor command acts on both wheels. Differential voltage / turn bias is outside this single-axis model.
+
+The motor stators are attached to the body. Therefore the motor rotor speed relative to its stator is based on wheel rotation **relative to the body**, not just wheel speed relative to the floor.
 
 ## 3. Physical parameters
 
@@ -40,52 +43,86 @@ At the upright equilibrium, \(s=\dot{s}=\theta=\dot{\theta}=u=0\). The controlle
 | \(J_w\) | Rotational inertia of one wheel about its axle | kg m² |
 | \(J_m\) | Rotor inertia of one motor, referred to its motor shaft | kg m² |
 | \(r\) | Effective rolling radius of each wheel | m |
-| \(G\) | Gear ratio: motor angular speed divided by wheel angular speed | dimensionless |
+| \(G\) | Gear ratio: motor speed divided by wheel speed relative to the body | dimensionless |
 | \(\eta\) | Motor/gearbox mechanical efficiency | dimensionless |
 | \(R\) | Armature resistance of one motor | Ω |
 | \(K_t\) | Motor torque constant | N m/A |
 | \(K_e\) | Motor back-EMF constant | V s/rad |
 | \(b_m\) | Lumped translational mechanical damping | N s/m |
-| \(c_\theta\) | Lumped pitch damping | N m s/rad |
+| \(c_\theta\) | Lumped pitch damping, excluding motor electrical damping | N m s/rad |
 | \(g\) | Gravitational acceleration | m/s² |
 
-The motor electrical inductance is neglected, so current is approximated as an algebraic function of applied voltage and back-EMF. This approximation is suitable for a first reduced-order plant model, not a detailed current-loop model.
+The motor electrical inductance is neglected, so current is approximated as an algebraic function of applied voltage and rotor speed relative to the stator. This approximation is suitable for a first reduced-order plant model, not a detailed current-loop model.
 
-## 4. Equivalent wheel and motor terms
+## 4. Wheel, body and motor terms
 
-The translational equivalent mass of the two wheels and reflected motor rotors is
+The reflected motor-rotor inertia must account for the fact that the motor stator rotates with the body. With motor-rotor absolute angle
 
 \[
-M = 2m_w + \frac{2J_w}{r^2} + \frac{2J_mG^2}{r^2}
+\alpha_m = G\phi+(1-G)\theta
 \]
 
-The body inertia about the axle is
+the two identical motor rotors contribute the following terms to the mass matrix:
 
 \[
-J = I_b + m_b l^2
+M = 2m_w+\frac{2J_w}{r^2}+\frac{2J_mG^2}{r^2}
 \]
 
-For two identical motors receiving the same voltage, the approximate total drive force is
-
 \[
-F_m = K_u u - B_e\dot{s}
+J = I_b+m_bl^2+2J_m(1-G)^2
 \]
 
-with
+\[
+h(\theta)=m_bl\cos\theta+\frac{2J_mG(1-G)}{r}
+\]
+
+Thus the motor-rotor inertia contributes to the translational inertia, pitch inertia, and off-diagonal coupling. Including it only in \(M\) would be inconsistent.
+
+For two identical motors receiving the same voltage, the total wheel-side motor torque is
 
 \[
-K_u = \frac{2\eta G K_t}{Rr},
+\tau_m =
+\frac{2\eta G K_t}{R}u
+-
+\frac{2\eta G^2 K_t K_e}{R}
+\left(\frac{\dot{s}}{r}-\dot{\theta}\right)
+\]
+
+The relative-speed term is essential: the rotor spins relative to the body-mounted stator. Define the wheel-side force \(F_m=\tau_m/r\), giving
+
+\[
+F_m=K_u u-B_e\dot{s}+rB_e\dot{\theta}
+\]
+
+where
+
+\[
+K_u=\frac{2\eta G K_t}{Rr},
 \qquad
-B_e = \frac{2\eta G^2K_tK_e}{Rr^2}
+B_e=\frac{2\eta G^2K_tK_e}{Rr^2}
 \]
 
-The effective translational damping is
+Motor torque acts between the wheel and body. For generalized coordinates \([s,\theta]^T\), its generalized forces are
 
 \[
-b = b_m + B_e
+\mathbf{Q}_m =
+\begin{bmatrix}
+F_m\\
+-\tau_m
+\end{bmatrix}
 \]
 
-The motor back-EMF term is therefore included once in \(b\); it must not be added again as a separate force in the final equations.
+The second component is the equal-and-opposite reaction torque on the body. Omitting it produces a cart-pendulum approximation rather than the motor-driven wheeled-inverted-pendulum model.
+
+For compact notation, define
+
+\[
+b=b_m+B_e,
+\qquad
+c_{\mathrm{eff}}=c_\theta+r^2B_e
+\]
+
+The back-EMF terms therefore appear in both generalized-force components, with the signs shown below.
 
 ## 5. Nonlinear equations
 
@@ -93,8 +130,8 @@ Using the upright-positive pitch convention, the coupled equations are
 
 \[
 \begin{bmatrix}
-M+m_b & m_b l\cos\theta \\
-m_b l\cos\theta & J
+M+m_b & h(\theta) \\
+h(\theta) & J
 \end{bmatrix}
 \begin{bmatrix}
 \ddot{s}\\
@@ -102,8 +139,10 @@ m_b l\cos\theta & J
 \end{bmatrix}
 =
 \begin{bmatrix}
-K_u u-b\dot{s}+m_b l\dot{\theta}^{2}\sin\theta\\
-m_bgl\sin\theta-c_\theta\dot{\theta}
+K_u u-b\dot{s}+rB_e\dot{\theta}
++m_bl\dot{\theta}^{2}\sin\theta\\
+m_bgl\sin\theta-rK_u u+rB_e\dot{s}
+-c_{\mathrm{eff}}\dot{\theta}
 \end{bmatrix}
 \]
 
@@ -119,39 +158,47 @@ For small pitch angles,
 \sin\theta \approx \theta,\qquad \cos\theta \approx 1
 \]
 
-Define
+Define the upright coupling and mass-matrix determinant
 
 \[
-\Delta = (M+m_b)J-(m_b l)^2
+h_0=m_bl+\frac{2J_mG(1-G)}{r}
+\]
+
+\[
+\Delta=(M+m_b)J-h_0^2
 \]
 
 Then
 
 \[
-\dot{\mathbf{x}} = A\mathbf{x}+Bu
+\dot{\mathbf{x}}=A\mathbf{x}+Bu
 \]
 
 where
 
 \[
-A =
+A=
 \begin{bmatrix}
 0 & 1 & 0 & 0\\
-0 & -Jb/\Delta & -m_b^2gl^2/\Delta & m_blc_\theta/\Delta\\
+0 & \frac{-Jb-h_0rB_e}{\Delta} &
+\frac{-h_0m_bgl}{\Delta} &
+\frac{JrB_e+h_0c_{\mathrm{eff}}}{\Delta}\\
 0 & 0 & 0 & 1\\
-0 & m_lb/\Delta & (M+m_b)m_bgl/\Delta & -(M+m_b)c_\theta/\Delta
+0 & \frac{h_0b+(M+m_b)rB_e}{\Delta} &
+\frac{(M+m_b)m_bgl}{\Delta} &
+\frac{-h_0rB_e-(M+m_b)c_{\mathrm{eff}}}{\Delta}
 \end{bmatrix}
 \]
 
 and
 
 \[
-B =
+B=
 \begin{bmatrix}
 0\\
-JK_u/\Delta\\
+\frac{(J+h_0r)K_u}{\Delta}\\
 0\\
--m_blK_u/\Delta
+-\frac{(h_0+(M+m_b)r)K_u}{\Delta}
 \end{bmatrix}
 \]
 
@@ -168,7 +215,7 @@ The script:
 
 1. Validates that the physical parameters are finite and within their admissible ranges.
 2. Builds the nonlinear equations and the linearized \(A\) and \(B\) matrices.
-3. Independently estimates the local Jacobians of the nonlinear equations using central finite differences and asserts agreement with \(A\) and \(B\).
+3. Independently estimates the local Jacobians of the nonlinear state derivative using central finite differences and asserts agreement with \(A\) and \(B\).
 4. Computes the open-loop eigenvalues.
 5. Builds the controllability matrix and reports its rank.
 6. Simulates a small initial forward pitch with zero motor voltage, stopping at a 20-degree pitch limit.
@@ -178,13 +225,14 @@ The script uses base MATLAB functions (including ode45, eig and rank); it does n
 
 ## 8. Assumptions and limitations
 
-- The robot is treated as a rigid body plus two identical rolling wheels.
+- The robot is treated as a rigid body plus two identical rolling wheels and two identical body-mounted geared motors.
 - Both wheels have equal common-mode drive voltage; yaw and differential steering are excluded.
 - Wheels roll without slip and remain in contact with the floor.
 - The body centre of mass is above the axle.
+- Motor rotor inertia is included using the motor rotor's absolute angular velocity; gearbox and other rotating drivetrain inertias are not separately identified.
 - The motor electrical inductance is neglected.
 - Gear efficiency and motor constants are treated as constant.
-- Mechanical damping is lumped into \(b_m\) and \(c_\theta\).
+- Mechanical translational and pitch damping are lumped into \(b_m\) and \(c_\theta\); motor back-EMF damping is modelled separately.
 - Motor voltage is limited in the nonlinear simulation; the state-space model is a local small-signal model around zero voltage.
 - The model does not include the discrete-time PID implementation, sensor filtering, computation delay or PWM quantization.
 
