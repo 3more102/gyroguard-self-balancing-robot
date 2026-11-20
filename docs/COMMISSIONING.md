@@ -5,7 +5,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 ## Stage 1 — Inspect and compile
 
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
-2. Complete the wiring in HARDWARE.md.
+2. Complete the wiring in HARDWARE.md, including the 10 kΩ TB6612 STBY pull-down.
 3. With the battery disconnected, check all power rails and grounds.
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
@@ -55,11 +55,11 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot will not drive autonomously until it has a valid forward-range measurement.
-6. Confirm that an invalid forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
-7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries.
-8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
-9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+5. Send 'a' only after balance-only operation is stable. The robot waits for the center servo to settle and for a valid forward reading at or beyond OBSTACLE_CLEAR_MM before moving.
+6. Confirm that an invalid or marginal forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
+7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position; it never reverses without rear-facing sensing.
+8. After a turn or scan, verify the center servo has settled and a fresh clear forward measurement is received before cruise resumes.
+9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, SERVO_SETTLE_MS, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
@@ -77,7 +77,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid or insufficient ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the servo settles and the sensor is retried. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
