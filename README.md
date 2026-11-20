@@ -157,7 +157,7 @@ The Servo library uses Timer1 on Uno/Nano, so motor PWM is assigned to D5 and D6
 - The documented battery divider is for a protected **2S pack only**: 2 × 10 kΩ resistors and a 100 nF capacitor, with the midpoint connected to A2.
 - At a fully charged 2S voltage of 8.4 V, the equal-resistor divider produces 4.2 V at A2. Never connect raw battery positive to A2.
 - Do not use this divider with a 3S or higher-voltage pack.
-- Check the exact motor-driver breakout for an existing STBY pull-down or pull-up before adding the documented 10 kΩ pull-down.
+- Verify a 10 kΩ pull-down keeps TB6612FNG STBY low during MCU reset; check whether the exact breakout already has a pull-down or pull-up. Firmware also drives STBY low before changing PWM or direction outputs.
 - Avoid simultaneously powering the Uno from USB and an external 5 V rail unless the board's power arrangement supports it safely.
 
 The default travel inhibit is 6.8 V, with recovery at 7.0 V. This is a movement interlock, not a battery-management system or cell-level protection.
@@ -237,7 +237,7 @@ stateDiagram-v2
     MOTOR_OFF_FAULT --> [*]: Inspect and power-cycle
 ```
 
-A normal boot or watchdog reset leaves the robot disarmed. An encoder-motion fault inhibits autonomous travel while balance remains active; inspect the cause and power-cycle before attempting autonomy again.
+A normal boot leaves the robot disarmed. If a reset occurs while balance is armed, a validated two-word `.noinit` marker triggers a startup motor-off fault; inspect the robot before power-cycling and deliberately re-arming. An encoder-motion fault inhibits autonomous travel while balance remains active; inspect the cause and power-cycle before attempting autonomy again.
 
 ## Safety logic is part of the design
 
@@ -251,6 +251,7 @@ A normal boot or watchdog reset leaves the robot disarmed. An encoder-motion fau
 | Stale or invalid range | Holds autonomous translation at zero |
 | Low / invalid battery | Inhibits autonomous travel; balance remains active |
 | Missing encoder motion | Inhibits autonomous travel and requires inspection |
+| Reset while balance armed | Latches a startup motor-off fault using the `.noinit` armed-state marker; no automatic re-arm |
 
 The robot does not reverse when the left and right scans fail to verify clearance: there is no rear-facing sensor. The ultrasonic sensor is a single-beam rangefinder and cannot provide full 360° perception, SLAM, or map-based navigation.
 
@@ -261,11 +262,11 @@ GyroGuard includes more than firmware. The repository also contains tests, resou
 | Area | Included work |
 |---|---|
 | Embedded firmware | PID, IMU, encoders, motor driver, sonar, navigation, battery monitor |
-| Host tests | PID, range guards, navigation policy/state machine, IMU validation, arming, motion and battery guards |
-| AVR build checks | Arduino Uno and classic Nano |
+| Host tests | PID, range guards, navigation policy/state machine, IMU validation, arming, motion, battery, reset-marker and encoder-speed guards |
+| AVR build checks | Arduino Uno and classic Nano (new and old bootloader variants) |
 | Resource constraints | 24,000-byte flash and 1,200-byte static SRAM project budgets |
 | Model analysis | Nonlinear plant, analytical linearization, finite-difference checks, open-loop poles, controllability |
-| Watchdog recovery | Early ATmega328P watchdog reset handling and disarmed restart behavior |
+| Watchdog recovery | Early ATmega328P watchdog shutdown, MCUSR capture and armed-state reset marker |
 
 The static SRAM budget leaves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P. Passing the static budget is not a substitute for stack analysis or hardware stress testing.
 
@@ -286,6 +287,8 @@ g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyrog
 g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test && /tmp/gyroguard-motion-guard-test
 g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test && /tmp/gyroguard-battery-policy-test
 g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes_battery tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test && /tmp/gyroguard-battery-monitor-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_reset_policy.cpp -o /tmp/gyroguard-reset-policy-test && /tmp/gyroguard-reset-policy-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_encoder_math.cpp -o /tmp/gyroguard-encoder-math-test && /tmp/gyroguard-encoder-math-test
 ```
 
 </details>
