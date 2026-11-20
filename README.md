@@ -9,9 +9,10 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
+- Fail-closed navigation: invalid sonar data or no proven-clear side stops travel while balance remains active
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
-- Serial commands and commissioning documentation
+- Serial commands, host unit tests and commissioning documentation
 
 > **Safety:** This is an engineering project, not a ready-to-drive appliance. Initial gains and mechanical parameters are starting points only. A self-balancing robot can move unexpectedly and fall. Commission it with the wheels raised, then use a tether or soft catch area. Keep hands, cables and loose clothing away from wheels.
 
@@ -41,11 +42,15 @@ Choose motors whose stall current is within the driver and battery limits. The T
       GyroGuard.ino
       config.h
       pid.h / pid.cpp
+      navigation_policy.h / navigation_policy.cpp
       imu_mpu6050.h / imu_mpu6050.cpp
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       obstacle_avoidance.h / obstacle_avoidance.cpp
+    tests/
+      test_pid.cpp
+      test_navigation_policy.cpp
     docs/
       HARDWARE.md
       COMMISSIONING.md
@@ -67,6 +72,13 @@ Arduino CLI example:
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
     arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 
+Host-side controller and navigation tests:
+
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test
+    /tmp/gyroguard-pid-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp firmware/GyroGuard/navigation_policy.cpp -o /tmp/gyroguard-navigation-test
+    /tmp/gyroguard-navigation-test
+
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
@@ -75,7 +87,8 @@ Arduino CLI example:
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
-- A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- A tilt, IMU or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- An invalid forward sonar reading or a scan with no verified-clear direction enters a travel HOLD. The balance loop remains active, the sensor is retried, and the robot periodically scans again. It never reverses without rear sensing.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
@@ -83,14 +96,14 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. A side is selectable only when its reading is valid and exceeds OBSTACLE_CLEAR_MM. If neither side is proven clear, the robot holds position instead of reversing blindly. The navigation state machine never pauses the balance loop.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
-- A single forward scanner does not provide full 360-degree perception.
+- A single forward scanner does not provide full 360-degree perception or rear clearance; GyroGuard therefore does not issue blind reverse commands.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
