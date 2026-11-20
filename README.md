@@ -112,3 +112,24 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 ## License
 
 MIT. See LICENSE.
+
+
+## Automated validation
+
+GitHub Actions runs three checks:
+
+- Host-side PID controller unit tests.
+- Host-side obstacle-avoidance state-machine tests using deterministic servo and sonar fakes.
+- Firmware compilation for the Arduino Uno target.
+
+Run the host tests locally from the repository root:
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test
+/tmp/gyroguard-pid-test
+
+g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-test
+/tmp/gyroguard-navigation-test
+```
+
+The host tests validate control logic only; they do not replace wheel-raised commissioning or physical balance testing.
