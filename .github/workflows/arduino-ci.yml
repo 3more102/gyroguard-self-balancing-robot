@@ -43,6 +43,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
           /tmp/gyroguard-battery-policy-test
+      - name: Test battery monitor filtering and fail-safe state
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test
+          /tmp/gyroguard-battery-monitor-test
       - name: Test encoder motion watchdog
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
