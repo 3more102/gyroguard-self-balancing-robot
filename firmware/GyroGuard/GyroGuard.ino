@@ -2,6 +2,7 @@
 #include <avr/wdt.h>
 #include "config.h"
 #include "watchdog_startup.h"
+#include "reset_policy.h"
 #include "arm_guard.h"
 #include "pid.h"
 #include "imu_mpu6050.h"
@@ -204,13 +205,24 @@ void setup() {
   motors.begin();
   wdt_disable();
   Serial.begin(SERIAL_BAUD);
-  if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
-    Serial.println(F("Previous reset cause: watchdog timeout; balance remains disarmed."));
-  }
+  const uint8_t resetCause = GyroGuardReset::selectResetCause(
+      gyroguard_mcusr_reset_cause, gyroguard_bootloader_reset_cause);
+  Serial.println(F("GyroGuard boot"));
+  Serial.print(F("Previous reset flags: 0x"));
+  Serial.println(resetCause, HEX);
+
   encoders.begin();
   navigation.begin();
 
-  Serial.println(F("\nGyroGuard boot"));
+  if (GyroGuardReset::requiresInspection(resetCause)) {
+    if (GyroGuardReset::isApplicationWatchdogReset(resetCause)) {
+      latchFault(F("Application watchdog reset; inspect robot before re-arming"));
+    } else if (GyroGuardReset::isBrownOutReset(resetCause)) {
+      latchFault(F("Brown-out reset; inspect battery and wiring before re-arming"));
+    }
+    return;
+  }
+
   Serial.println(F("Keep robot upright and motionless during IMU calibration."));
 
   if (!imu.begin()) {
