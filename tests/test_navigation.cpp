@@ -79,8 +79,9 @@ static void testObstacleScanAndTurnTowardClearerSide() {
   injectRange(250);
   command = updateAt(navigation, SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, 0.0f));
-  assert(navigation.frontDistanceValid());
-  assert(navigation.frontDistanceMm() == 250);
+  // The range is no longer a forward measurement once the servo starts scanning.
+  assert(!navigation.frontDistanceValid());
+  assert(navigation.frontDistanceMm() == 0);
   assert(fakeServoAngle == SERVO_LEFT_DEG);
 
   command = updateAt(navigation, SONAR_RETRY_MS + 1 + SERVO_SETTLE_MS);
