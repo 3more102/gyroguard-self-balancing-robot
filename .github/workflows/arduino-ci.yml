@@ -82,3 +82,15 @@ jobs:
 
           check_build arduino:avr:uno
           check_build arduino:avr:nano
+
+  model-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GNU Octave
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends octave
+      - name: Run Stage 2 model checks
+        run: |
+          octave --quiet --eval "addpath('matlab'); results=gyroguard_stage2_analysis(false); assert(results.controllabilityRank == 4);"
