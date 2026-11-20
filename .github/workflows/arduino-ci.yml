@@ -19,6 +19,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
           /tmp/gyroguard-navigation-test
+      - name: Test battery voltage policy
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
+          /tmp/gyroguard-battery-policy-test
 
   compile-avr-targets:
     runs-on: ubuntu-latest
