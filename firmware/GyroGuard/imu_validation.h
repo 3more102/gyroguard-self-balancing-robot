@@ -30,8 +30,9 @@ private:
 };
 
 inline bool isMpu6050Identity(uint8_t whoAmI) {
-  // WHO_AM_I bits [6:1] contain the MPU-6050 I2C address (0x68).
-  return (whoAmI & 0x7EU) == 0x68U;
+  // WHO_AM_I is fixed at 0x68; AD0 changes the bus address, not this value.
+  // Bits 7 and 0 are reserved and hard-coded to zero by the device.
+  return whoAmI == 0x68U;
 }
 
 inline bool calibrationWindowIsStationary(
