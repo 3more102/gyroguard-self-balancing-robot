@@ -54,6 +54,19 @@ constexpr float ARM_TILT_LIMIT_DEG = 8.0f;
 constexpr float ARM_RATE_LIMIT_DPS = 10.0f;
 constexpr uint32_t MAX_ARM_SAMPLE_AGE_US = 15000UL; // Three 200 Hz control periods.
 
+// Battery monitor for a protected 2S Li-ion pack. Use a 10 kΩ / 10 kΩ
+// divider from switched pack positive to A2, with 100 nF from A2 to GND.
+// Calibrate the ADC reference against the regulated 5 V rail with a DMM.
+constexpr uint8_t PIN_BATTERY_SENSE = A2;
+constexpr uint16_t BATTERY_ADC_REFERENCE_MV = 5000;
+constexpr uint8_t BATTERY_DIVIDER_RATIO = 2;
+constexpr uint16_t BATTERY_SAMPLE_PERIOD_MS = 100;
+constexpr uint8_t BATTERY_FILTER_DIVISOR = 4;
+constexpr uint16_t LOW_BATTERY_INHIBIT_MV = 6800;
+constexpr uint16_t LOW_BATTERY_RECOVERY_MV = 7000;
+constexpr uint16_t BATTERY_MIN_VALID_MV = 5000;
+constexpr uint16_t BATTERY_MAX_VALID_MV = 9000;
+
 // Startup calibration acceptance limits. These are conservative firmware
 // thresholds, not MPU-6050 datasheet accuracy specifications.
 constexpr float IMU_CAL_MAX_ACCEL_ANGLE_STD_DEG = 2.5f;
