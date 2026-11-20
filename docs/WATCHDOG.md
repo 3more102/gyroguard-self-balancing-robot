@@ -32,7 +32,7 @@ The TB6612FNG STBY input must remain low while the MCU is resetting. Use a verif
 
 ## Bench-only reset-marker test
 
-The firmware contains a test-only path guarded by `GYROGUARD_TEST_WATCHDOG_RESET`. It is not enabled in production builds. With the motor supply disconnected, compile and upload:
+The firmware contains a test-only path guarded by `GYROGUARD_TEST_WATCHDOG_RESET`. It is not enabled in production builds, and no serial command can force a watchdog reset in the production image. With the motor supply disconnected, compile and upload:
 
 ```sh
 arduino-cli compile --fqbn arduino:avr:uno \
