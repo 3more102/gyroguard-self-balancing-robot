@@ -49,6 +49,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     docs/
       HARDWARE.md
       COMMISSIONING.md
+      RESOURCE_BUDGETS.md
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -67,6 +68,8 @@ Arduino CLI example:
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
     arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 
+CI runs the PID host tests and compiles both the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
+
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
@@ -83,7 +86,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+3. **Navigation:** the HC-SR04 is scanned at center during travel, then left/right after an obstacle is detected. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
