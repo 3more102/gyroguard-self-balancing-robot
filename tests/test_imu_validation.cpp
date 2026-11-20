@@ -29,7 +29,8 @@ static void addStableSamples(RunningStats &angle, RunningStats &gyroY,
 
 int main() {
   assert(isMpu6050Identity(0x68U));
-  assert(isMpu6050Identity(0x69U)); // Reserved bit 0 is ignored.
+  assert(!isMpu6050Identity(0x69U)); // WHO_AM_I bit 0 is hard-coded to zero.
+  assert(!isMpu6050Identity(0xE8U)); // Reserved bit 7 is also hard-coded to zero.
   assert(!isMpu6050Identity(0x00U));
   assert(!isMpu6050Identity(0x70U));
 

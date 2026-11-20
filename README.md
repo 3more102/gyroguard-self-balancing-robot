@@ -5,7 +5,8 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 ## Included
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
-- MPU-6050 identity check and stationary-window startup calibration validation
+- MPU-6050 identity check, stationary-window startup calibration validation and bounded I²C transactions
+- PID input guards reject NaN/infinite sensor or timing values and reset controller state safely
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
@@ -96,7 +97,8 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 
 - Autonomous movement is **disabled on boot**.
 - The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
-- The robot calibrates the IMU while it is held upright and stationary.
+- The robot calibrates the IMU while it is held upright and stationary; calibration rejects motion, vibration and implausible gravity magnitude.
+- MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction latches the motor driver off.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.

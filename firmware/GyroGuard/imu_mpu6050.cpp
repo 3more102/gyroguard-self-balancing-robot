@@ -21,6 +21,9 @@ bool MPU6050::begin() {
   initialized_ = false;
   filterInitialized_ = false;
   Wire.begin();
+  // Bound TWI transactions so a stuck bus cannot hang the control loop.
+  Wire.setWireTimeout(IMU_I2C_TIMEOUT_US, true);
+  Wire.clearWireTimeoutFlag();
   Wire.setClock(400000UL);
 
   uint8_t whoAmI = 0;
@@ -41,18 +44,29 @@ bool MPU6050::begin() {
 }
 
 bool MPU6050::writeRegister(uint8_t reg, uint8_t value) {
+  Wire.clearWireTimeoutFlag();
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(reg);
   Wire.write(value);
-  return Wire.endTransmission() == 0;
+  const uint8_t status = Wire.endTransmission();
+  const bool timedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  return status == 0 && !timedOut;
 }
 
 bool MPU6050::readRegisters(uint8_t firstReg, uint8_t *buffer, uint8_t length) {
+  Wire.clearWireTimeoutFlag();
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(firstReg);
-  if (Wire.endTransmission(false) != 0) return false;
+  const uint8_t txStatus = Wire.endTransmission(false);
+  const bool txTimedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (txStatus != 0 || txTimedOut) return false;
+
   const uint8_t received = Wire.requestFrom(MPU6050_ADDRESS, length, (uint8_t)true);
-  if (received != length) {
+  const bool rxTimedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (rxTimedOut || received != length) {
     while (Wire.available()) (void)Wire.read();
     return false;
   }
