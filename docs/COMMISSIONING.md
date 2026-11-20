@@ -73,9 +73,9 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 1. Do not deeply discharge the Li-ion pack to test the threshold.
 2. With the wheels raised and a current-limited adjustable bench supply replacing the pack, lower the pack input slowly toward 6.8 V while keeping the regulated 5 V logic rail stable.
 3. Verify the separate telemetry record reports batteryMv near the multimeter reading and valid=1. The low flag is driven by the raw sample (not the smoothed display value) and must assert on the first 100 ms sample at/below 6.8 V. With balance armed, sending 'a' must leave autonomous mode disabled. If autonomy was already active, the first low sample must disable travel while the balance loop remains active.
-4. Raise the supply to at least 7.0 V and wait for the filtered reading to recover. The low flag clears, but autonomous travel stays disabled until 'a' is deliberately sent again.
-5. With the pack voltage safe, disconnect only the divider's switched-positive sense lead while leaving the lower 10 kΩ resistor connected to ground. Verify valid=0 and that 'a' remains blocked.
-6. Restore the sense lead, verify the reading against a multimeter, then reconnect the protected 2S pack.
+4. With the low-battery inhibit active, disconnect only the divider's switched-positive sense lead while leaving the lower 10 kΩ resistor connected to ground. Verify valid=0 and inhibit=1; an invalid sample must not clear the existing latch.
+5. Reconnect the sense lead at 6.9 V and verify travel remains inhibited. Raise the supply to at least 7.0 V and wait until both the raw sample and filtered reading meet the recovery threshold. The inhibit clears, but autonomous travel stays disabled until 'a' is deliberately sent again.
+6. Restore the protected 2S pack, verify the reading against a multimeter, and confirm autonomous mode remains off until explicitly re-armed.
 
 The battery monitor is a travel inhibit, not a motor power cut or cell-level BMS. Do not use it to justify deep discharge or omit the pack's protection circuit.
 
