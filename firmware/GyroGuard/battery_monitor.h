@@ -17,4 +17,5 @@ private:
   uint16_t filteredMillivolts_;
   bool initialized_;
   bool travelInhibited_;
+  bool sampleValid_;
 };
