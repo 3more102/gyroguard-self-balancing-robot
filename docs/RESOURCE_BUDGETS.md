@@ -9,8 +9,8 @@ The Arduino CI workflow validates:
 - Host PID controller tests.
 - Host obstacle-navigation policy tests.
 - Host ultrasonic range-classification tests.
-- Arduino Uno build (\`arduino:avr:uno\`).
-- Classic Nano build (\`arduino:avr:nano\`).
+- Arduino Uno build (`arduino:avr:uno`).
+- Classic Nano build (`arduino:avr:nano`).
 
 Both AVR builds use the same firmware directory and install the AVR core plus the Arduino Servo library.
 
@@ -25,7 +25,7 @@ These are project limits, not the microcontroller's hardware limits. The CI job 
 
 ## Reference baseline
 
-The successful pre-navigation-policy-hardening build of main at commit \`d40bcc8b2e46b59965ea8465717391cdeca723ac\` reported for Arduino Uno:
+The successful pre-navigation-policy-hardening build of main at commit `d40bcc8b2e46b59965ea8465717391cdeca723ac` reported for Arduino Uno:
 
 - Flash: 14,938 bytes
 - Static/global SRAM: 624 bytes
