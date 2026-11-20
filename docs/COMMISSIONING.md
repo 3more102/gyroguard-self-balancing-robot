@@ -57,7 +57,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
 5. Confirm the fail-safe interlock: with no valid front range, autonomous forward speed must remain zero while the balance loop stays active. A reading older than 250 ms is also treated as stale and blocks forward travel.
 6. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward the side with more measured clearance.
-7. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed. Invalid side-scan readings are treated as blocked, not as open space.
+7. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed. Invalid side-scan readings are treated as unknown, not as open space. If both side scans are invalid, no timed turn is commanded; the robot returns to a stopped forward-range check.
 8. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands

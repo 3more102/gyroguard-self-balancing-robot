@@ -10,8 +10,8 @@ void ObstacleAvoidance::begin() {
   autonomous_ = AUTO_DRIVE_ON_BOOT;
   stateSinceMs_ = millis();
   lastSonarStartMs_ = 0;
-  haveLeft_ = false;
-  haveRight_ = false;
+  leftValid_ = false;
+  rightValid_ = false;
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
   lastFrontMeasurementMs_ = 0;
@@ -20,10 +20,18 @@ void ObstacleAvoidance::begin() {
 
 void ObstacleAvoidance::setAutonomous(bool enabled) {
   autonomous_ = enabled;
-  if (!enabled) {
-    state_ = DRIVE;
-    servo_.write(SERVO_CENTER_DEG);
-  }
+
+  // Discard any in-flight or completed measurement. A scan taken before the
+  // mode change must not be reused as a fresh forward-facing range.
+  sonar_.cancelMeasurement();
+  state_ = DRIVE;
+  servo_.write(SERVO_CENTER_DEG);
+  frontDistanceMm_ = 0;
+  frontDistanceValid_ = false;
+  lastFrontMeasurementMs_ = 0;
+  lastSonarStartMs_ = enabled ? millis() - SONAR_RETRY_MS : millis();
+  leftValid_ = false;
+  rightValid_ = false;
 }
 
 bool ObstacleAvoidance::autonomous() const {
@@ -39,8 +47,8 @@ uint16_t ObstacleAvoidance::frontDistanceMm() const {
 }
 
 void ObstacleAvoidance::startScan(uint32_t nowMs) {
-  haveLeft_ = false;
-  haveRight_ = false;
+  leftValid_ = false;
+  rightValid_ = false;
   servo_.write(SERVO_LEFT_DEG);
   state_ = SCAN_LEFT_SETTLE;
   stateSinceMs_ = nowMs;
@@ -68,29 +76,30 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
       startScan(nowMs);
     }
   } else if (state_ == SCAN_LEFT_MEASURE) {
-    leftDistanceMm_ = gyroguardConservativeScanDistance(valid, distance);
-    haveLeft_ = true;
+    leftDistanceMm_ = distance;
+    leftValid_ = valid;
     servo_.write(SERVO_RIGHT_DEG);
     state_ = SCAN_RIGHT_SETTLE;
     stateSinceMs_ = nowMs;
   } else if (state_ == SCAN_RIGHT_MEASURE) {
-    rightDistanceMm_ = gyroguardConservativeScanDistance(valid, distance);
-    haveRight_ = true;
+    rightDistanceMm_ = distance;
+    rightValid_ = valid;
 
-    if (haveLeft_ && haveRight_) {
-      turnDirection_ = (leftDistanceMm_ > rightDistanceMm_) ? -1.0f : 1.0f;
-    } else if (haveLeft_) {
-      turnDirection_ = -1.0f;
-    } else {
-      turnDirection_ = 1.0f;
-    }
+    const GyroGuardScanDecision decision = gyroguardChooseScanDirection(
+        leftValid_, leftDistanceMm_, rightValid_, rightDistanceMm_,
+        static_cast<uint16_t>(OBSTACLE_CLEAR_MM));
 
     servo_.write(SERVO_CENTER_DEG);
-    if (leftDistanceMm_ < OBSTACLE_CLEAR_MM &&
-        rightDistanceMm_ < OBSTACLE_CLEAR_MM) {
-      state_ = REVERSING;
+    if (!decision.usable) {
+      // Neither side produced a trustworthy range. Do not reverse or turn
+      // toward an unknown direction; require a new valid front measurement.
+      turnDirection_ = 0.0f;
+      frontDistanceValid_ = false;
+      state_ = DRIVE;
+      lastSonarStartMs_ = nowMs;
     } else {
-      state_ = TURNING;
+      turnDirection_ = static_cast<float>(decision.turnDirection);
+      state_ = decision.reverseFirst ? REVERSING : TURNING;
     }
     stateSinceMs_ = nowMs;
   }

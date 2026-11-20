@@ -59,6 +59,16 @@ bool Ultrasonic::startMeasurement(uint32_t nowUs) {
   return true;
 }
 
+void Ultrasonic::cancelMeasurement() {
+  waiting_ = false;
+  resultReady_ = false;
+  valid_ = false;
+  noInterrupts();
+  echoComplete_ = false;
+  echoWaitingForRise_ = false;
+  interrupts();
+}
+
 void Ultrasonic::update(uint32_t nowUs) {
   if (!waiting_) return;
 

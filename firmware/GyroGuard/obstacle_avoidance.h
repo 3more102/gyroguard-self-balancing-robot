@@ -44,7 +44,7 @@ private:
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
   bool frontDistanceValid_;
-  bool haveLeft_;
-  bool haveRight_;
+  bool leftValid_;
+  bool rightValid_;
   float turnDirection_;
 };

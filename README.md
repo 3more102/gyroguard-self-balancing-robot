@@ -11,6 +11,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - TB6612FNG dual H-bridge driver
 - Fail-closed autonomous travel interlock for invalid or stale forward sonar data
+- Conservative side-scan selection: invalid readings are unknown, and two invalid scans do not trigger a timed turn
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
 
@@ -46,6 +47,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
+      navigation_safety.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
@@ -96,6 +98,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
 - A single forward scanner does not provide full 360-degree perception.
 - Invalid or stale forward sonar data blocks autonomous forward travel; it does not disable the balance controller.
+- If both side scans are invalid, the robot does not choose an arbitrary turn; it returns to a stopped forward-range check.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
