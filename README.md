@@ -56,6 +56,12 @@ Choose motors whose stall current is within the driver and battery limits. The T
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+      MATHEMATICAL_MODEL.md
+      MEASUREMENT_WORKSHEET.md
+    matlab/
+      gyroguard_parameters.m
+      gyroguard_stage2_analysis.m
+      README.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
@@ -124,6 +130,19 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
+
+## Stage 2 mathematical model
+
+The longitudinal plant model is documented in [MATHEMATICAL_MODEL.md](docs/MATHEMATICAL_MODEL.md). It includes motor reaction torque on the body, motor back-EMF based on rotor speed relative to the body-mounted stator, and reflected motor-rotor inertia in the coupled mass matrix.
+
+Run the MATLAB/Octave analysis from the repository root:
+
+    addpath('matlab');
+    results = gyroguard_stage2_analysis(false);
+
+The analysis checks the analytical linearization against finite-difference Jacobians, computes open-loop poles and controllability, and compares nonlinear and linear responses. It does not require the Control System Toolbox.
+
+**Important:** the default model parameters are illustrative placeholders, not measured hardware data. Complete [MEASUREMENT_WORKSHEET.md](docs/MEASUREMENT_WORKSHEET.md) and replace the placeholders before final controller design or reporting physical performance.
 
 ## License
 
