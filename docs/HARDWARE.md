@@ -13,6 +13,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 - 1 × SG90 micro servo and rigid sensor bracket
 - 1 × protected 2-cell Li-ion battery pack and compatible charger
 - 1 × regulated 5 V buck converter with sufficient current for logic and servo
+- 2 × 10 kΩ, 1% resistors and 1 × 100 nF capacitor for battery sensing
 - Chassis, motor mounts, switch, wiring, fasteners, a fuse and a 10 kΩ STBY pull-down resistor
 
 **Exactly two wheels:** mount one driven wheel on each side of the chassis, coaxial with one another. The robot balances dynamically on those two wheels. Do not add a caster during normal operation; a caster changes the dynamics and can hide balance problems.
@@ -37,6 +38,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | HC-SR04 TRIG | A0 |
 | HC-SR04 ECHO | A1 (PCINT9) |
 | SG90 signal | D9 |
+| Battery divider midpoint | A2 |
 
 Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code. The Servo library reserves Timer1 on the Uno/Nano and disables hardware PWM on D9/D10 while attached; GyroGuard keeps motor PWM on D5/D6.
 
@@ -53,7 +55,21 @@ Do not connect the HC-SR04 Echo to a different pin without changing the pin-chan
 
 Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a battery to Uno VIN unless the voltage is suitable for the board regulator; a 2S pack may not provide enough headroom for a stable 5 V rail.
 
-## 4. TB6612FNG connections and current limits
+## 4. Battery-voltage monitor
+
+Install this divider only with the documented protected **2S pack**:
+
+1. Connect switched battery positive (after the fuse and main switch) to a 10 kΩ, 1% resistor.
+2. Connect the other end of that resistor to Arduino A2.
+3. Connect a second 10 kΩ, 1% resistor from A2 to common ground.
+4. Add a 100 nF ceramic capacitor from A2 to ground, close to the Arduino.
+5. With the pack fully charged at 8.4 V, verify A2 is approximately 4.2 V and remains below 4.3 V.
+
+The equal-resistor divider halves the pack voltage: 8.4 V becomes 4.2 V at A2. **Never connect raw battery positive directly to A2.** Do not use this divider with a 3S or higher-voltage pack. The firmware assumes a 5.0 V ADC reference by default; measure the regulated 5 V rail and adjust `BATTERY_ADC_REFERENCE_MV` in config.h to the measured value.
+
+The software inhibits autonomous travel at or below 6.8 V and clears the inhibit only after a valid reading reaches at least 7.0 V. Readings below 5.0 V or above 9.0 V are invalid and also inhibit travel. This monitor does not cut motor power or stop the balance loop. Keep a proper 2S BMS/protected pack: this monitor is not cell-level protection.
+
+## 5. TB6612FNG connections and current limits
 
 - VCC → regulated 5 V logic
 - VM → motor battery positive
@@ -72,7 +88,7 @@ Toshiba's typical application circuit shows local 0.1 µF and 10 µF decoupling 
 
 Reference: [Toshiba TB6612FNG official datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf?did=10660&prodName=TB6612FNG).
 
-## 5. MPU-6050 mounting
+## 6. MPU-6050 mounting
 
 Mount the IMU rigidly on the chassis, close to the axle and away from motor vibration. For the default code orientation:
 
@@ -84,7 +100,7 @@ Mount the IMU rigidly on the chassis, close to the axle and away from motor vibr
 
 If your breakout axes or mounting differ, the pitch axis and sign in imu_mpu6050.cpp must be adapted. Do not try to fix a wrong IMU axis by randomly changing PID gains.
 
-## 6. Encoder wiring and calibration
+## 7. Encoder wiring and calibration
 
 Each encoder needs channel A and channel B. Connect encoder supply and ground according to the motor/encoder datasheet. Verify encoder output voltage is compatible with 5 V Arduino inputs; use level shifting if required.
 
@@ -96,18 +112,19 @@ Use the encoder manufacturer's definition carefully: some vendors quote counts a
 
 If forward wheel rotation gives negative speed, change the corresponding LEFT_ENCODER_SIGN or RIGHT_ENCODER_SIGN in config.h.
 
-## 7. Ultrasonic sensor and servo
+## 8. Ultrasonic sensor and servo
 
 Mount the HC-SR04 at the front, with a clear view and no frame parts in its beam. Attach it to the SG90 bracket. Verify the servo's physical left/right directions. If they are reversed, swap SERVO_LEFT_DEG and SERVO_RIGHT_DEG in config.h.
 
 The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn().
 
-## 8. Before applying power
+## 9. Before applying power
 
 - Verify polarity and continuity with a multimeter.
 - Check there is no short between battery positive and ground.
 - Confirm the motor driver and motors are rated for the battery.
 - Confirm all grounds are common.
 - Verify the STBY pull-down and local driver decoupling are installed.
+- Verify the battery divider is wired to A2 and never exposes A2 to raw pack voltage.
 - Raise the wheels off the bench for the first motor test.
 - Keep a hand on the physical power switch.
