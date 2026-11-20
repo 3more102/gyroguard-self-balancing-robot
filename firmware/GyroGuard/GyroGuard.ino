@@ -120,7 +120,7 @@ void setup() {
   }
 
   if (!imu.calibrate(IMU_CALIBRATION_SAMPLES, imuZeroAngleDeg, gyroBiasDps)) {
-    latchFault(F("IMU calibration read failed"));
+    latchFault(F("IMU calibration unstable/failed; keep robot still"));
     return;
   }
 

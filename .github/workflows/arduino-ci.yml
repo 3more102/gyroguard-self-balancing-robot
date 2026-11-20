@@ -23,6 +23,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
           /tmp/gyroguard-range-guard-test
+      - name: Test IMU identity and calibration validation
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
+          /tmp/gyroguard-imu-validation-test
 
   compile-avr-targets:
     runs-on: ubuntu-latest
