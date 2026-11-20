@@ -26,9 +26,19 @@ inline bool batteryVoltagePlausible(uint16_t batteryMv,
 
 // Apply hysteresis so load transients do not repeatedly arm/disarm autonomy.
 inline bool batteryTravelInhibited(bool currentlyInhibited,
-                                   uint16_t batteryMv,
+                                   uint16_t rawBatteryMv,
+                                   uint16_t filteredBatteryMv,
+                                   bool voltageValid,
                                    uint16_t inhibitBelowOrAtMv,
                                    uint16_t recoverAtOrAboveMv) {
-  if (currentlyInhibited) return batteryMv < recoverAtOrAboveMv;
-  return batteryMv <= inhibitBelowOrAtMv;
+  // An invalid sample must not clear an existing inhibit, even if its raw
+  // numeric value looks high. Recovery requires both raw and filtered data
+  // to be valid and at/above the recovery threshold.
+  if (!voltageValid) return true;
+  if (currentlyInhibited) {
+    return rawBatteryMv < recoverAtOrAboveMv ||
+           filteredBatteryMv < recoverAtOrAboveMv;
+  }
+  // Use the raw sample for the low-voltage trip so filtering cannot delay it.
+  return rawBatteryMv <= inhibitBelowOrAtMv;
 }
