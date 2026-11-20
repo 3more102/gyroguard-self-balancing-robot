@@ -1,5 +1,6 @@
 #include "obstacle_avoidance.h"
 #include "config.h"
+#include "navigation_policy.h"
 
 void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
@@ -9,18 +10,30 @@ void ObstacleAvoidance::begin() {
   autonomous_ = AUTO_DRIVE_ON_BOOT;
   stateSinceMs_ = millis();
   lastSonarStartMs_ = 0;
-  haveLeft_ = false;
-  haveRight_ = false;
+  leftDistanceMm_ = 0;
+  rightDistanceMm_ = 0;
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
+  leftValid_ = false;
+  rightValid_ = false;
+  ignoreNextSonar_ = false;
   turnDirection_ = 0.0f;
 }
 
 void ObstacleAvoidance::setAutonomous(bool enabled) {
   autonomous_ = enabled;
-  if (!enabled) {
-    state_ = DRIVE;
-    servo_.write(SERVO_CENTER_DEG);
+  state_ = DRIVE;
+  servo_.write(SERVO_CENTER_DEG);
+  frontDistanceValid_ = false;
+
+  if (enabled) {
+    // Discard a completed reading from the previous scan/mode. If an echo is
+    // still in flight, ignore its completion before accepting a front sample.
+    uint16_t discardedDistanceMm = 0;
+    bool discardedValid = false;
+    (void)sonar_.takeDistanceMm(discardedDistanceMm, discardedValid);
+    ignoreNextSonar_ = sonar_.busy();
+    lastSonarStartMs_ = 0;
   }
 }
 
@@ -37,8 +50,10 @@ uint16_t ObstacleAvoidance::frontDistanceMm() const {
 }
 
 void ObstacleAvoidance::startScan(uint32_t nowMs) {
-  haveLeft_ = false;
-  haveRight_ = false;
+  leftDistanceMm_ = 0;
+  rightDistanceMm_ = 0;
+  leftValid_ = false;
+  rightValid_ = false;
   servo_.write(SERVO_LEFT_DEG);
   state_ = SCAN_LEFT_SETTLE;
   stateSinceMs_ = nowMs;
@@ -58,35 +73,44 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   bool valid = false;
   if (!sonar_.takeDistanceMm(distance, valid)) return;
 
+  if (ignoreNextSonar_) {
+    ignoreNextSonar_ = false;
+    return;
+  }
+
   if (state_ == DRIVE) {
     frontDistanceValid_ = valid;
-    if (valid) frontDistanceMm_ = distance;
-    if (valid && autonomous_ && distance < OBSTACLE_STOP_MM) {
-      startScan(nowMs);
+    if (valid) {
+      frontDistanceMm_ = distance;
+      if (autonomous_ && distance < OBSTACLE_STOP_MM) {
+        startScan(nowMs);
+      }
     }
   } else if (state_ == SCAN_LEFT_MEASURE) {
-    leftDistanceMm_ = valid ? distance : SONAR_MAX_RANGE_MM;
-    haveLeft_ = true;
+    leftValid_ = valid;
+    leftDistanceMm_ = valid ? distance : 0;
     servo_.write(SERVO_RIGHT_DEG);
     state_ = SCAN_RIGHT_SETTLE;
     stateSinceMs_ = nowMs;
   } else if (state_ == SCAN_RIGHT_MEASURE) {
-    rightDistanceMm_ = valid ? distance : SONAR_MAX_RANGE_MM;
-    haveRight_ = true;
+    rightValid_ = valid;
+    rightDistanceMm_ = valid ? distance : 0;
 
-    if (haveLeft_ && haveRight_) {
-      turnDirection_ = (leftDistanceMm_ > rightDistanceMm_) ? -1.0f : 1.0f;
-    } else if (haveLeft_) {
-      turnDirection_ = -1.0f;
-    } else {
-      turnDirection_ = 1.0f;
-    }
+    const GyroGuard::TurnDecision decision =
+        GyroGuard::chooseTurnDirection(leftValid_, leftDistanceMm_,
+                                       rightValid_, rightDistanceMm_,
+                                       OBSTACLE_CLEAR_MM);
 
     servo_.write(SERVO_CENTER_DEG);
-    if (leftDistanceMm_ < OBSTACLE_CLEAR_MM &&
-        rightDistanceMm_ < OBSTACLE_CLEAR_MM) {
-      state_ = REVERSING;
+    if (decision == GyroGuard::TurnDecision::HOLD) {
+      // Neither side has proven clearance. Do not guess and do not reverse
+      // blindly; settle at center and obtain a fresh forward measurement.
+      frontDistanceValid_ = false;
+      state_ = CENTER_SETTLE;
     } else {
+      turnDirection_ = (decision == GyroGuard::TurnDecision::LEFT)
+                           ? -1.0f
+                           : 1.0f;
       state_ = TURNING;
     }
     stateSinceMs_ = nowMs;
@@ -105,7 +129,12 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
         startSonar(nowUs, nowMs, DRIVE);
       }
-      return {CRUISE_SPEED_MM_S, 0.0f};
+      // Fail closed: no valid front echo means no autonomous forward motion.
+      if (GyroGuard::forwardPathIsClear(frontDistanceValid_, frontDistanceMm_,
+                                        OBSTACLE_STOP_MM)) {
+        return {CRUISE_SPEED_MM_S, 0.0f};
+      }
+      return {0.0f, 0.0f};
 
     case SCAN_LEFT_SETTLE:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS) {
@@ -125,22 +154,24 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
     case SCAN_RIGHT_MEASURE:
       return {0.0f, 0.0f};
 
+    case CENTER_SETTLE:
+      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS) {
+        state_ = DRIVE;
+        lastSonarStartMs_ = nowMs;
+      }
+      return {0.0f, 0.0f};
+
     case TURNING:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= TURN_DURATION_MS) {
         state_ = DRIVE;
         stateSinceMs_ = nowMs;
+        frontDistanceValid_ = false;
         lastSonarStartMs_ = nowMs;
-        return {CRUISE_SPEED_MM_S, 0.0f};
+        return {0.0f, 0.0f};
       }
       // Positive bias speeds left wheel relative to right wheel (right turn).
       return {0.0f, turnDirection_ * TURN_BIAS_PWM};
-
-    case REVERSING:
-      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= REVERSE_DURATION_MS) {
-        state_ = TURNING;
-        stateSinceMs_ = nowMs;
-      }
-      return {REVERSE_SPEED_MM_S, 0.0f};
   }
+
   return {0.0f, 0.0f};
 }
