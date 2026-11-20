@@ -8,6 +8,7 @@ void BatteryMonitor::begin() {
   filteredMillivolts_ = 0;
   initialized_ = false;
   travelInhibited_ = true; // Fail closed until a valid recovery-level reading.
+  sampleValid_ = false;
 }
 
 bool BatteryMonitor::update(uint32_t nowMs) {
@@ -21,6 +22,8 @@ bool BatteryMonitor::update(uint32_t nowMs) {
   const uint16_t raw = static_cast<uint16_t>(analogRead(PIN_BATTERY_SENSE));
   const uint16_t sampleMv = batteryMillivoltsFromAdc(
       raw, BATTERY_ADC_REFERENCE_MV, BATTERY_DIVIDER_RATIO);
+  const bool rawSampleValid = batteryVoltagePlausible(
+      sampleMv, BATTERY_MIN_VALID_MV, BATTERY_MAX_VALID_MV);
 
   if (!initialized_) {
     filteredMillivolts_ = sampleMv;
@@ -31,10 +34,11 @@ bool BatteryMonitor::update(uint32_t nowMs) {
     filteredMillivolts_ = static_cast<uint16_t>(weighted / divisor);
   }
 
-  const bool valid = batteryVoltagePlausible(
+  const bool filteredValid = batteryVoltagePlausible(
       filteredMillivolts_, BATTERY_MIN_VALID_MV, BATTERY_MAX_VALID_MV);
+  sampleValid_ = rawSampleValid && filteredValid;
   travelInhibited_ = batteryTravelInhibited(
-      travelInhibited_, filteredMillivolts_, valid,
+      travelInhibited_, filteredMillivolts_, sampleValid_,
       LOW_BATTERY_INHIBIT_MV, LOW_BATTERY_RECOVERY_MV);
   lastSampleMs_ = nowMs;
   initialized_ = true;
@@ -50,7 +54,7 @@ bool BatteryMonitor::lowBattery() const {
 }
 
 bool BatteryMonitor::voltageValid() const {
-  return initialized_ && batteryVoltagePlausible(
+  return initialized_ && sampleValid_ && batteryVoltagePlausible(
       filteredMillivolts_, BATTERY_MIN_VALID_MV, BATTERY_MAX_VALID_MV);
 }
 
