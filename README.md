@@ -72,6 +72,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_pid.cpp
       test_navigation_policy.cpp
       test_range_guard.cpp
+      test_navigation_state_machine.cpp
       test_imu_validation.cpp
       test_servo_center_settle.cpp
       test_balance_arming.cpp
@@ -101,6 +102,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-navigation-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
     /tmp/gyroguard-range-guard-test
+    g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
+    /tmp/gyroguard-navigation-state-machine-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
     /tmp/gyroguard-imu-validation-test
     g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_servo_center_settle.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-servo-settle-test
