@@ -240,10 +240,10 @@ void setup() {
   if (GyroGuardReset::requiresInspection(resetCause, previousBalanceArmed)) {
     if (previousBalanceArmed) {
       latchFault(F("Unexpected reset while balance was armed; inspect before re-arming"));
-    } else if (GyroGuardReset::isApplicationWatchdogReset(resetCause)) {
-      latchFault(F("Application watchdog reset; inspect robot before re-arming"));
     } else if (GyroGuardReset::isBrownOutReset(resetCause)) {
       latchFault(F("Brown-out reset; inspect battery and wiring before re-arming"));
+    } else if (GyroGuardReset::isApplicationWatchdogReset(resetCause)) {
+      latchFault(F("Application watchdog reset; inspect robot before re-arming"));
     }
     return;
   }
