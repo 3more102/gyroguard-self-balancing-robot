@@ -58,8 +58,9 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 5. Send a only after balance-only operation is stable. The robot will not drive autonomously until it has a valid forward-range measurement.
 6. Confirm that an invalid forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries.
-8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
-9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+8. If both measured sides are below OBSTACLE_CLEAR_MM, the robot holds position; it does not reverse because no rear-facing sensor is installed.
+9. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
+10. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
