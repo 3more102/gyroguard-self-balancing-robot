@@ -12,10 +12,10 @@ void ObstacleAvoidance::begin() {
   lastSonarStartMs_ = 0;
   leftDistanceMm_ = 0;
   rightDistanceMm_ = 0;
-  leftValid_ = false;
-  rightValid_ = false;
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
+  leftValid_ = false;
+  rightValid_ = false;
   ignoreNextSonarResult_ = false;
   turnDirection_ = 0.0f;
 }
@@ -46,6 +46,10 @@ void ObstacleAvoidance::setAutonomous(bool enabled) {
 
 bool ObstacleAvoidance::autonomous() const {
   return autonomous_;
+}
+
+bool ObstacleAvoidance::blocked() const {
+  return state_ == SENSOR_HOLD || state_ == SENSOR_HOLD_MEASURE;
 }
 
 bool ObstacleAvoidance::frontDistanceValid() const {
