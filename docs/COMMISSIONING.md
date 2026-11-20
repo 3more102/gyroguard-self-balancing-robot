@@ -13,10 +13,11 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 ## Stage 2 — Verify sensor orientation
 
 1. Keep motor power disconnected or wheels safely raised.
-2. Hold the robot upright and motionless during startup calibration (about 3 seconds).
-3. Watch the reported pitch telemetry.
-4. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
-5. If not, correct the IMU orientation/axis mapping before continuing.
+2. Hold the robot upright and completely motionless during startup calibration (about 3 seconds).
+3. The firmware checks accelerometer gravity magnitude and the variation in measured angle and gyro rate. Calibration is rejected if the sensor appears to be moving or the gravity reading is implausible; power-cycle with the robot held still.
+4. Watch the reported pitch telemetry.
+5. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
+6. If not, correct the IMU orientation/axis mapping before continuing.
 
 The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
 

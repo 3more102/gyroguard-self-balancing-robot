@@ -15,6 +15,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test
           /tmp/gyroguard-pid-test
+      - name: Test IMU calibration quality checks
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_calibration.cpp -o /tmp/gyroguard-imu-calibration-test
+          /tmp/gyroguard-imu-calibration-test
 
   compile-uno:
     runs-on: ubuntu-latest

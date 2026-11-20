@@ -70,7 +70,8 @@ Arduino CLI example:
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
-- The robot calibrates the IMU while it is held upright and stationary.
+- The robot calibrates the IMU while it is held upright and stationary; calibration checks motion variance and plausible gravity magnitude.
+- I²C transactions have a bounded timeout, and the watchdog is active during sensor startup and calibration.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Send 's' to request zero forward speed while keeping balance active.
