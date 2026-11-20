@@ -64,8 +64,8 @@ constexpr float MAX_TARGET_SPEED_MM_S = 180.0f;
 // Navigation distances are millimetres.
 constexpr bool AUTO_DRIVE_ON_BOOT = false;
 constexpr float CRUISE_SPEED_MM_S = 100.0f;
-constexpr float OBSTACLE_STOP_MM = 320.0f;
-constexpr float OBSTACLE_CLEAR_MM = 450.0f;
+constexpr uint16_t OBSTACLE_STOP_MM = 320;
+constexpr uint16_t OBSTACLE_CLEAR_MM = 450;
 constexpr uint16_t SONAR_MAX_RANGE_MM = 2500;
 constexpr uint16_t SONAR_MIN_RANGE_MM = 30;
 constexpr uint8_t SERVO_CENTER_DEG = 90;
@@ -74,9 +74,7 @@ constexpr uint8_t SERVO_RIGHT_DEG = 35;
 constexpr uint16_t SERVO_SETTLE_MS = 250;
 constexpr uint16_t SONAR_RETRY_MS = 65;
 constexpr uint16_t TURN_DURATION_MS = 650;
-constexpr uint16_t REVERSE_DURATION_MS = 300;
 constexpr float TURN_BIAS_PWM = 38.0f;
-constexpr float REVERSE_SPEED_MM_S = -55.0f;
 
 // If scan directions are reversed by your bracket, swap LEFT and RIGHT angles.
 constexpr unsigned long SERIAL_BAUD = 115200UL;
