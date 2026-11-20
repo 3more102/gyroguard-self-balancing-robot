@@ -33,10 +33,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
-      - name: Install AVR core and dependencies
+      - name: Install AVR core with Wire timeout support
         run: |
           arduino-cli core update-index
-          arduino-cli core install arduino:avr
+          arduino-cli core install arduino:avr@1.8.6
           arduino-cli lib install Servo
       - name: Compile Uno and classic Nano with memory budgets
         shell: bash
