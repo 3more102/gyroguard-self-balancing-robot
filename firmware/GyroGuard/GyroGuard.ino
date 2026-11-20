@@ -82,14 +82,16 @@ void readSerialCommands() {
   while (Serial.available() > 0) {
     const char command = static_cast<char>(Serial.read());
     if (command == 'b' || command == 'B') {
-      if (!canArmBalance(faultLatched, pitchValid, pitchDeg,
-                         ARM_TILT_LIMIT_DEG)) {
+      if (!canArmBalance(faultLatched, pitchValid, pitchDeg, pitchRateDps,
+                         ARM_TILT_LIMIT_DEG, ARM_RATE_LIMIT_DPS)) {
         if (faultLatched) {
           printCommandResponse(F("ARM BLOCKED: fault"), 20);
         } else if (!pitchValid) {
           printCommandResponse(F("ARM BLOCKED: no IMU sample"), 30);
-        } else {
+        } else if (fabsf(pitchDeg) > ARM_TILT_LIMIT_DEG) {
           printCommandResponse(F("ARM BLOCKED: hold upright"), 28);
+        } else {
+          printCommandResponse(F("ARM BLOCKED: hold still"), 26);
         }
       } else if (!balanceArmed) {
         navigation.setAutonomous(false);
@@ -198,7 +200,7 @@ void setup() {
   Serial.print(F("Gyro Y bias dps: "));
   Serial.println(gyroBiasDps, 4);
   Serial.println(F("IMU calibrated. Motor outputs remain disabled."));
-  Serial.println(F("Wait for valid pitch telemetry, hold within 8 degrees of upright, then send 'b'."));
+  Serial.println(F("Wait for valid pitch telemetry, hold within 8 degrees of upright and nearly motionless, then send 'b'."));
   Serial.println(F("Send 'a' only after balance-only operation is stable."));
 
   wdt_enable(WDTO_250MS);

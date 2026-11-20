@@ -12,7 +12,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown, invalid or stale sensor data never authorizes forward motion or an unverified turn
 - TB6612FNG dual H-bridge driver
-- Explicit balance arming with a live-IMU and upright-angle interlock
+- Explicit balance arming with live-IMU, upright-angle and low-pitch-rate interlocks
 - Watchdog reset recovery and tilt, sensor, timing safety handling
 - Serial commands and commissioning documentation
 
@@ -105,7 +105,7 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
 - The robot calibrates the IMU while it is held upright and stationary.
 - After calibration, motor outputs remain disabled.
-- Wait for valid pitch telemetry, hold the robot within 8 degrees of upright, and send 'b' over Serial Monitor (115200 baud) to arm balancing.
+- Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing.
 - Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
