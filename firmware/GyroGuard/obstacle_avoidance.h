@@ -14,6 +14,7 @@ public:
   void begin();
   void setAutonomous(bool enabled);
   bool autonomous() const;
+  bool blocked() const;
   bool frontDistanceValid() const;
   uint16_t frontDistanceMm() const;
   NavigationCommand update(uint32_t nowMs, uint32_t nowUs);
