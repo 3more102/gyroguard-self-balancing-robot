@@ -8,6 +8,7 @@ The Arduino CI workflow validates:
 
 - Host PID controller tests.
 - Host obstacle-navigation policy tests.
+- Host front-range freshness and obstacle-avoidance state-machine tests.
 - Arduino Uno build (`arduino:avr:uno`).
 - Classic Nano build (`arduino:avr:nano`).
 

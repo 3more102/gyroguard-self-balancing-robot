@@ -97,6 +97,8 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - Autonomous movement is **disabled on boot**.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
+- Front sonar measurements and range telemetry continue while autonomous travel is disabled; this diagnostic mode never commands translation.
+- The center servo settles before forward ranging after startup, mode changes and scans.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - The center servo is allowed to settle after a scan or re-arm; a fresh forward measurement at or beyond OBSTACLE_CLEAR_MM is required before cruise resumes.
