@@ -7,7 +7,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
 2. Complete the wiring in HARDWARE.md.
 3. With the battery disconnected, check all power rails and grounds.
-4. Compile for Arduino Uno. Upload with the motor battery disconnected.
+4. Compile for Arduino Uno or classic Nano. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
 
 ## Stage 2 — Verify sensor orientation
@@ -77,7 +77,11 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. A latched control fault requires inspection and a power-cycle; do not automatically re-arm a robot that has fallen.
+
+**Watchdog / brown-out recovery:** GyroGuard captures Optiboot's reset flags from register r2 before normal C initialization and also captures MCUSR for bootloaders that preserve it. The watchdog is disabled in the early startup section. An application watchdog reset (WDRF without EXTRF) or a brown-out reset keeps the motor driver disabled and latches a fault instead of automatically restarting balance control. Optiboot may report WDRF together with EXTRF after its own upload timeout; that combination is not treated as an application watchdog failure.
+
+For Arduino Nano boards, use the ATmega328P (new bootloader / Optiboot) setting when relying on watchdog recovery. The old ATmegaBOOT bootloader can reset-loop after a watchdog reset before the sketch regains control; compiling for the old Nano target does not verify that bootloader's runtime recovery behavior. Inspect the robot and power system, then power-cycle while holding the chassis upright for calibration.
 
 ## Tuning record
 
