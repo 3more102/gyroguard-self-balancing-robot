@@ -103,7 +103,7 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
   if (!autonomous_) return {0.0f, 0.0f};
 
   switch (state_) {
-    case DRIVE:
+    case DRIVE: {
       if (!sonar_.busy() &&
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
         startSonar(nowUs, nowMs, DRIVE);
@@ -112,6 +112,7 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
           frontDistanceValid_, frontDistanceMm_, nowMs, lastFrontMeasurementMs_,
           SONAR_DATA_TIMEOUT_MS, static_cast<uint16_t>(OBSTACLE_STOP_MM));
       return {rangeSafe ? CRUISE_SPEED_MM_S : 0.0f, 0.0f};
+    }
 
     case SCAN_LEFT_SETTLE:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS) {
