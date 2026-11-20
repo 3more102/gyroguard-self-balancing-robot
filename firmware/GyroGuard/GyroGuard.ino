@@ -117,7 +117,7 @@ void setup() {
   }
 
   if (!imu.calibrate(IMU_CALIBRATION_SAMPLES, imuZeroAngleDeg, gyroBiasDps)) {
-    latchFault(F("IMU calibration read failed"));
+    latchFault(F("IMU calibration rejected: check I2C, upright position and motion"));
     return;
   }
 
@@ -178,7 +178,7 @@ void loop() {
   }
 
   // Inner balance loop: positive forward pitch commands positive forward effort.
-  // Gyro rate is derivative-on-measurement for damping.
+  // The pitch-rate term damps angular motion using the measured gyro rate.
   const float balanceCommand = balancePid.update(
       pitchDeg - targetAngleDeg, dt, pitchRateDps, true);
 
