@@ -52,7 +52,7 @@ Do not connect the HC-SR04 Echo to a different pin without changing the pin-chan
 
 Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a battery to Uno VIN unless the voltage is suitable for the board regulator; a 2S pack may not provide enough headroom for a stable 5 V rail.
 
-## 4. TB6612FNG connections
+## 4. TB6612FNG connections and current limits
 
 - VCC → regulated 5 V logic
 - VM → motor battery positive
@@ -61,7 +61,15 @@ Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a batt
 - BO1/BO2 → right motor terminals
 - PWMA, AIN1, AIN2, PWMB, BIN1, BIN2 and STBY → pins in the table
 
-Confirm the breakout's pin labels; board layouts differ. Check the motor stall current against the exact driver board's continuous and peak limits. Do not assume a module can safely drive any small DC motor.
+Confirm the breakout's pin labels; board layouts differ.
+
+**Do not size the motors using the driver's peak-current headline.** Toshiba's TB6612FNG datasheet lists an operating-range output-current limit of 1.0 A when VM is at least 4.5 V. Its absolute-maximum table lists 1.2 A per channel, with pulse-only limits of 2 A for a 20 ms pulse at no more than 20% duty and 3.2 A for a single 10 ms pulse. These absolute-maximum and pulse values are not continuous operating targets.
+
+Before buying motors, check each motor's stall current at the intended motor voltage. If a motor can demand more current than the actual driver breakout can safely handle, choose a lower-current motor or a higher-current driver. Also account for both channels operating together, PCB copper area, cooling, wiring and battery capability; a breakout board can have a lower practical continuous-current limit than the IC headline rating.
+
+Toshiba's typical application circuit shows local 0.1 µF and 10 µF decoupling on both the motor and logic supply rails. Check whether the breakout already includes suitable capacitors; otherwise add the recommended local decoupling close to the driver.
+
+Reference: [Toshiba TB6612FNG official datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf?did=10660&prodName=TB6612FNG).
 
 ## 5. MPU-6050 mounting
 
