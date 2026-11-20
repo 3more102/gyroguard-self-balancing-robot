@@ -40,11 +40,12 @@ void MotorDriver::setSpeeds(float leftPwm, float rightPwm) {
 }
 
 void MotorDriver::disable() {
+  // STBY is active-low: shut down both H-bridges before changing other pins.
+  digitalWrite(PIN_MOTOR_STBY, LOW);
   analogWrite(PIN_LEFT_PWM, 0);
   analogWrite(PIN_RIGHT_PWM, 0);
   digitalWrite(PIN_LEFT_IN1, LOW);
   digitalWrite(PIN_LEFT_IN2, LOW);
   digitalWrite(PIN_RIGHT_IN1, LOW);
   digitalWrite(PIN_RIGHT_IN2, LOW);
-  digitalWrite(PIN_MOTOR_STBY, LOW);
 }
