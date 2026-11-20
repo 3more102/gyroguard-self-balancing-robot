@@ -36,6 +36,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | Right encoder channel B | D7 |
 | HC-SR04 TRIG | A0 |
 | HC-SR04 ECHO | A1 (PCINT9) |
+| Battery divider midpoint | A2 |
 | SG90 signal | D9 |
 
 Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code. The Servo library reserves Timer1 on the Uno/Nano and disables hardware PWM on D9/D10 while attached; GyroGuard keeps motor PWM on D5/D6.
@@ -102,7 +103,25 @@ Mount the HC-SR04 at the front, with a clear view and no frame parts in its beam
 
 The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn().
 
-## 8. Before applying power
+## 8. Battery voltage monitor (required for autonomous travel)
+
+The firmware expects a protected **2S Li-ion pack** and a divider on A2. This monitor is a low-voltage travel inhibit; it is not a battery-management system and does not replace a protected pack or its BMS.
+
+Wire the divider after the main fuse and power switch:
+
+1. Connect switched battery positive to a **10 kΩ, 1% resistor**.
+2. Connect the other end of that resistor to Arduino **A2**.
+3. Connect a second **10 kΩ, 1% resistor** from A2 to common GND.
+4. Connect a **100 nF ceramic capacitor** from A2 to GND, close to the controller.
+5. Keep battery negative, divider ground, buck ground and Arduino GND common.
+
+The equal-resistor divider has a 2:1 ratio. A fully charged 2S pack at 8.4 V produces approximately 4.2 V at A2. **Never allow A2 to exceed the Arduino's 5 V input limit.** Do not use this divider with a 3S pack.
+
+Before connecting A2 to the controller, measure the divider output with a multimeter at the pack's maximum voltage. Calibrate `BATTERY_ADC_REFERENCE_MV` in config.h against the actual 5 V rail if the displayed pack voltage is inaccurate. The default 5000 mV reference is an initial value, not a precision measurement.
+
+The firmware samples the pack every 100 ms, filters the displayed result, and inhibits autonomous travel at or below 6.8 V. Once inhibited, travel remains blocked until a valid reading reaches 7.0 V. An invalid or missing divider reading also inhibits autonomous travel. The balance loop remains active; use the physical battery switch for an emergency stop. Do not deliberately deep-discharge the pack to test the threshold.
+
+## 9. Before applying power
 
 - Verify polarity and continuity with a multimeter.
 - Check there is no short between battery positive and ground.
