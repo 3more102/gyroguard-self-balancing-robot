@@ -90,6 +90,7 @@ Host unit tests (requires a C++11 compiler):
 - If both side scans are blocked or uncertain, the robot holds position. It does not reverse without rear-facing sensing.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
+- Telemetry reports navBlocked=1 whenever navigation is holding because range data or side clearance is insufficient.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
@@ -100,7 +101,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown or invalid range readings inhibit translation instead of being interpreted as clear space.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range and navigation hold state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
