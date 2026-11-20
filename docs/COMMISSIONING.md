@@ -6,6 +6,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
 2. Complete the wiring in HARDWARE.md, including the 10 kΩ TB6612 STBY pull-down and local driver decoupling.
+   Include the 10 kΩ / 10 kΩ battery divider and 100 nF A2 filter for autonomous travel.
 3. With the battery disconnected, check all power rails and grounds.
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
@@ -66,6 +67,17 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries; it does not reverse without rear sensing.
 8. After a scan, re-arm or turn, wait SERVO_SETTLE_MS for the center servo to settle; forward travel remains disabled until a fresh center measurement confirms clearance.
 9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, SERVO_SETTLE_MS, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+
+## Stage 6 — Verify battery monitoring
+
+1. Confirm the battery is a protected 2S Li-ion pack and the divider is wired exactly as described in HARDWARE.md.
+2. With motor power disconnected, measure pack voltage and A2 voltage with a multimeter. At 8.4 V pack voltage, A2 should be about 4.2 V and must remain below 5.0 V.
+3. Check the once-per-second `BAT=...`, `ok=...`, and `inhibit=...` telemetry against the multimeter. If needed, calibrate `BATTERY_ADC_REFERENCE_MV` in config.h.
+4. Verify an invalid reading or voltage at/below 6.8 V inhibits autonomous travel. The controller must reject command 'a' while the reading is invalid or low.
+5. Verify recovery requires at least 7.0 V. Use a current-limited bench supply or a safe test fixture; do not deep-discharge the Li-ion pack to exercise the threshold.
+6. Confirm low battery inhibits autonomous travel but does not silently disarm the balance loop. Keep the physical battery switch accessible.
+
+The monitor is a travel interlock only. It is not a BMS, cell balancer, charger or substitute for a protected battery pack.
 
 ## Serial commands
 
