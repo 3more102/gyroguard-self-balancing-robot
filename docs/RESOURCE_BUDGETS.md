@@ -12,6 +12,7 @@ The Arduino CI workflow validates:
 - Host servo-center settling and balance-only sonar diagnostic tests.
 - Host MPU-6050 identity and startup-calibration validation tests.
 - Host encoder-motion watchdog tests.
+- Host battery ADC conversion, plausibility and hysteresis tests.
 - Arduino Uno build (`arduino:avr:uno`).
 - Classic Nano build (`arduino:avr:nano`).
 
