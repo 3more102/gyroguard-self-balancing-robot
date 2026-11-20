@@ -1,4 +1,5 @@
 #include "imu_mpu6050.h"
+#include "imu_calibration_stats.h"
 #include "config.h"
 #include <Wire.h>
 #include <math.h>
