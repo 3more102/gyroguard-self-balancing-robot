@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <avr/io.h>
 #include <avr/wdt.h>
 #include "config.h"
 #include "pid.h"
@@ -7,6 +8,18 @@
 #include "motor_driver.h"
 #include "obstacle_avoidance.h"
 #include <math.h>
+
+// The AVR watchdog can remain enabled after a watchdog reset. Capture MCUSR
+// and disable it in .init3, before the Arduino runtime and global constructors.
+uint8_t gyroGuardResetCause __attribute__((section(".noinit")));
+void gyroGuardCaptureResetCauseAndDisableWatchdog(void)
+    __attribute__((used, unused, naked, section(".init3")));
+
+void gyroGuardCaptureResetCauseAndDisableWatchdog(void) {
+  gyroGuardResetCause = MCUSR;
+  MCUSR = 0;
+  wdt_disable();
+}
 
 namespace {
 MPU6050 imu;
@@ -35,12 +48,16 @@ float velocityLoopDt = 0.02f;
 EncoderSnapshot previousCounts{0, 0};
 
 void latchFault(const __FlashStringHelper *reason) {
-  if (!faultLatched) {
+  const bool firstFault = !faultLatched;
+  faultLatched = true;
+
+  // Disable the H-bridge before any potentially blocking serial output.
+  motors.disable();
+
+  if (firstFault) {
     Serial.print(F("FAULT: "));
     Serial.println(reason);
   }
-  faultLatched = true;
-  motors.disable();
 }
 
 bool updateVelocity(uint32_t nowUs) {
@@ -102,13 +119,30 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
 }
 
 void setup() {
-  wdt_disable();
-  Serial.begin(SERIAL_BAUD);
+  // Put the motor driver in standby before initializing other peripherals.
   motors.begin();
+  Serial.begin(SERIAL_BAUD);
+
+  Serial.println(F("\nGyroGuard boot"));
+  Serial.print(F("Reset cause flags: 0x"));
+  Serial.println(gyroGuardResetCause, HEX);
+
+  // A watchdog or brown-out reset requires inspection. Do not automatically
+  // re-arm a robot that may have fallen or experienced an unstable power rail.
+  if ((gyroGuardResetCause & (_BV(WDRF) | _BV(BORF))) != 0) {
+    if ((gyroGuardResetCause & _BV(WDRF)) != 0) {
+      Serial.println(F("Previous reset: watchdog."));
+    }
+    if ((gyroGuardResetCause & _BV(BORF)) != 0) {
+      Serial.println(F("Previous reset: brown-out."));
+    }
+    latchFault(F("Reset requires inspection; power-cycle to re-arm."));
+    return;
+  }
+
   encoders.begin();
   navigation.begin();
 
-  Serial.println(F("\nGyroGuard boot"));
   Serial.println(F("Keep robot upright and motionless during IMU calibration."));
 
   if (!imu.begin()) {
