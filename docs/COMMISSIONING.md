@@ -79,7 +79,9 @@ The motor driver is disabled and the fault is latched if:
 
 An invalid ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. A latched control fault requires inspection and a power-cycle; do not automatically re-arm a robot that has fallen.
 
-**Watchdog / brown-out recovery:** the ATmega328P reset flags are captured and the watchdog is disabled during the early startup section, before normal Arduino initialization. If a watchdog or brown-out reset is detected, GyroGuard keeps the motor driver disabled and latches a fault instead of automatically restarting balance control. Inspect the robot and power system, then power-cycle while holding the chassis upright for calibration.
+**Watchdog / brown-out recovery:** GyroGuard captures Optiboot's reset flags from register r2 before normal C initialization and also captures MCUSR for bootloaders that preserve it. The watchdog is disabled in the early startup section. An application watchdog reset (WDRF without EXTRF) or a brown-out reset keeps the motor driver disabled and latches a fault instead of automatically restarting balance control. Optiboot may report WDRF together with EXTRF after its own upload timeout; that combination is not treated as an application watchdog failure.
+
+For Arduino Nano boards, use the ATmega328P (new bootloader / Optiboot) setting when relying on watchdog recovery. The old ATmegaBOOT bootloader can reset-loop after a watchdog reset before the sketch regains control; compiling for the old Nano target does not verify that bootloader's runtime recovery behavior. Inspect the robot and power system, then power-cycle while holding the chassis upright for calibration.
 
 ## Tuning record
 
