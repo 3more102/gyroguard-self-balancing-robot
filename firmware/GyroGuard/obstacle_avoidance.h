@@ -26,7 +26,6 @@ private:
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
     TURNING,
-    REVERSING,
     SENSOR_HOLD,
     SENSOR_HOLD_MEASURE
   };
@@ -41,6 +40,7 @@ private:
   bool autonomous_;
   uint32_t stateSinceMs_;
   uint32_t lastSonarStartMs_;
+  uint32_t frontDistanceAtMs_;
   uint16_t leftDistanceMm_;
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
