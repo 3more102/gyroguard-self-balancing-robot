@@ -13,7 +13,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 - 1 × SG90 micro servo and rigid sensor bracket
 - 1 × protected 2-cell Li-ion battery pack and compatible charger
 - 1 × regulated 5 V buck converter with sufficient current for logic and servo
-- Chassis, motor mounts, switch, wiring, fasteners and a fuse
+- Chassis, motor mounts, switch, wiring, fasteners, a fuse and a 10 kΩ resistor for STBY pull-down
 
 **Exactly two wheels:** mount one driven wheel on each side of the chassis, coaxial with one another. The robot balances dynamically on those two wheels. Do not add a caster during normal operation; a caster changes the dynamics and can hide balance problems.
 
@@ -38,7 +38,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | HC-SR04 ECHO | A1 (PCINT9) |
 | SG90 signal | D9 |
 
-Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code.
+Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code. The Servo library reserves Timer1 on the Uno/Nano and disables hardware PWM on D9/D10 while attached; GyroGuard keeps motor PWM on D5/D6.
 
 ## 3. Power wiring
 
@@ -49,6 +49,7 @@ Do not connect the HC-SR04 Echo to a different pin without changing the pin-chan
 5. Connect all grounds together: battery negative, buck ground, Uno GND, TB6612 GND, sensor grounds and servo ground.
 6. Do **not** power motors or the servo from the Uno 5 V pin. Servo current spikes can reset the controller; use a suitable 5 V buck rail with adequate peak-current capacity.
 7. Keep motor wires twisted and physically separated from IMU and I2C wires. Add local bulk capacitance near the motor driver as recommended by its datasheet / breakout documentation.
+8. Connect a **10 kΩ pull-down resistor from TB6612 STBY (A3) to GND**. This keeps the driver in standby while the Arduino is resetting or its pins are high-impedance.
 
 Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a battery to Uno VIN unless the voltage is suitable for the board regulator; a 2S pack may not provide enough headroom for a stable 5 V rail.
 
@@ -91,7 +92,7 @@ If forward wheel rotation gives negative speed, change the corresponding LEFT_EN
 
 Mount the HC-SR04 at the front, with a clear view and no frame parts in its beam. Attach it to the SG90 bracket. Verify the servo's physical left/right directions. If they are reversed, swap SERVO_LEFT_DEG and SERVO_RIGHT_DEG in config.h.
 
-The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn().
+The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn(). After each scan or turn, the center servo is allowed to settle before the next forward measurement is trusted.
 
 ## 8. Before applying power
 
@@ -99,5 +100,6 @@ The sensor is scanned at center during travel, then left and right after an obst
 - Check there is no short between battery positive and ground.
 - Confirm the motor driver and motors are rated for the battery.
 - Confirm all grounds are common.
+- Verify the 10 kΩ STBY pull-down is installed.
 - Raise the wheels off the bench for the first motor test.
 - Keep a hand on the physical power switch.
