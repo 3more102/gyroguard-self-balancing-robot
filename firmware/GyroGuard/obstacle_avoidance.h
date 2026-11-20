@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include "sonar.h"
+#include "navigation_policy.h"
 
 struct NavigationCommand {
   float targetSpeedMmS;
@@ -21,10 +22,12 @@ public:
 private:
   enum State : uint8_t {
     DRIVE,
+    SENSOR_HOLD,
     SCAN_LEFT_SETTLE,
     SCAN_LEFT_MEASURE,
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
+    NO_PATH,
     TURNING,
     REVERSING
   };
@@ -43,7 +46,10 @@ private:
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
   bool frontDistanceValid_;
+  bool leftValid_;
+  bool rightValid_;
   bool haveLeft_;
   bool haveRight_;
+  uint8_t frontInvalidCount_;
   float turnDirection_;
 };
