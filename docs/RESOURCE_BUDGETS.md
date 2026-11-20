@@ -12,10 +12,13 @@ The Arduino CI workflow validates:
 - Host servo-center settling and balance-only sonar diagnostic tests.
 - Host MPU-6050 identity and startup-calibration validation tests.
 - Host encoder-motion watchdog tests.
-- Arduino Uno build (`arduino:avr:uno`).
-- Classic Nano build (`arduino:avr:nano`).
+- Encoder-to-linear-speed conversion tests.
+- Reset-cause policy tests for application watchdog, brown-out and Optiboot upload-timeout flags.
+- Arduino Uno build (arduino:avr:uno).
+- Classic Nano with the new Optiboot bootloader (arduino:avr:nano:cpu=atmega328).
+- Classic Nano with the old ATmegaBOOT bootloader (arduino:avr:nano:cpu=atmega328old).
 
-Both AVR builds use the same firmware directory and install the AVR core plus the Arduino Servo library.
+All three AVR builds use the same firmware directory and install the AVR core plus the Arduino Servo library.
 
 ## Project guardrails
 
