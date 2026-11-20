@@ -12,6 +12,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Fail-safe range gating: unknown sensor data never authorizes forward motion or an unverified turn
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
+- Early watchdog-reset handling and latched recovery after watchdog / brown-out events
 - Serial commands and commissioning documentation
 
 > **Safety:** This is an engineering project, not a ready-to-drive appliance. Initial gains and mechanical parameters are starting points only. A self-balancing robot can move unexpectedly and fall. Commission it with the wheels raised, then use a tether or soft catch area. Keep hands, cables and loose clothing away from wheels.
@@ -90,6 +91,7 @@ Host unit tests (requires a C++11 compiler):
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- Watchdog or brown-out resets also latch the driver off and require inspection before re-arming.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
