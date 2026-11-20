@@ -1,6 +1,7 @@
 #include "obstacle_avoidance.h"
 #include "config.h"
 #include "navigation_policy.h"
+#include "range_guard.h"
 
 void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
@@ -10,6 +11,7 @@ void ObstacleAvoidance::begin() {
   autonomous_ = AUTO_DRIVE_ON_BOOT;
   stateSinceMs_ = millis();
   lastSonarStartMs_ = 0;
+  frontDistanceAtMs_ = 0;
   leftDistanceMm_ = 0;
   rightDistanceMm_ = 0;
   leftValid_ = false;
@@ -42,6 +44,7 @@ void ObstacleAvoidance::setAutonomous(bool enabled) {
 
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
+  frontDistanceAtMs_ = 0;
 }
 
 bool ObstacleAvoidance::autonomous() const {
@@ -63,6 +66,7 @@ void ObstacleAvoidance::startScan(uint32_t nowMs) {
   rightValid_ = false;
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
+  frontDistanceAtMs_ = 0;
   servo_.write(SERVO_LEFT_DEG);
   state_ = SCAN_LEFT_SETTLE;
   stateSinceMs_ = nowMs;
@@ -90,6 +94,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   if (state_ == DRIVE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
+    frontDistanceAtMs_ = valid ? nowMs : 0;
 
     if (autonomous_) {
       if (!valid) {
@@ -118,17 +123,19 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
     servo_.write(SERVO_CENTER_DEG);
     if (decision.valid) {
       turnDirection_ = static_cast<float>(decision.turnDirection);
-      state_ = decision.reverseFirst ? REVERSING : TURNING;
+      state_ = TURNING;
     } else {
       // Neither side has enough verified clearance. Hold position and retry.
       state_ = SENSOR_HOLD;
       frontDistanceMm_ = 0;
       frontDistanceValid_ = false;
+      frontDistanceAtMs_ = 0;
     }
     stateSinceMs_ = nowMs;
   } else if (state_ == SENSOR_HOLD_MEASURE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
+    frontDistanceAtMs_ = valid ? nowMs : 0;
 
     if (!valid) {
       state_ = SENSOR_HOLD;
@@ -155,7 +162,10 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
         startSonar(nowUs, nowMs, DRIVE);
       }
       // A valid forward measurement is required before autonomous travel.
-      return {frontDistanceValid_ ? CRUISE_SPEED_MM_S : 0.0f, 0.0f};
+      const bool rangeFresh = isRangeSampleFresh(
+          frontDistanceValid_, frontDistanceAtMs_, nowMs,
+          FRONT_RANGE_MAX_AGE_MS);
+      return {rangeFresh ? CRUISE_SPEED_MM_S : 0.0f, 0.0f};
 
     case SCAN_LEFT_SETTLE:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS) {
@@ -182,18 +192,12 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
         lastSonarStartMs_ = nowMs;
         frontDistanceMm_ = 0;
         frontDistanceValid_ = false;
+        frontDistanceAtMs_ = 0;
         // Wait for a fresh center reading before driving forward again.
         return {0.0f, 0.0f};
       }
       // Positive bias speeds the left wheel relative to the right: turn right.
       return {0.0f, turnDirection_ * TURN_BIAS_PWM};
-
-    case REVERSING:
-      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= REVERSE_DURATION_MS) {
-        state_ = TURNING;
-        stateSinceMs_ = nowMs;
-      }
-      return {REVERSE_SPEED_MM_S, 0.0f};
 
     case SENSOR_HOLD:
       if (!sonar_.busy() &&

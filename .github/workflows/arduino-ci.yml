@@ -19,6 +19,14 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
           /tmp/gyroguard-navigation-test
+      - name: Test IMU calibration quality
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_calibration.cpp -o /tmp/gyroguard-imu-calibration-test
+          /tmp/gyroguard-imu-calibration-test
+      - name: Test front-range freshness guard
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
+          /tmp/gyroguard-range-guard-test
 
   compile-avr-targets:
     runs-on: ubuntu-latest

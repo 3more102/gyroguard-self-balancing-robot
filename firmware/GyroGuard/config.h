@@ -47,6 +47,11 @@ constexpr uint32_t MAX_CONTROL_GAP_US = 20000UL;
 // MPU-6050
 constexpr uint8_t MPU6050_ADDRESS = 0x68; // AD0 low; use 0x69 if AD0 high
 constexpr uint16_t IMU_CALIBRATION_SAMPLES = 500;
+constexpr float IMU_MAX_CALIBRATION_ANGLE_STDDEV_DEG = 1.5f;
+constexpr float IMU_MAX_CALIBRATION_GYRO_STDDEV_DPS = 2.0f;
+constexpr float IMU_MIN_CALIBRATION_GRAVITY_G = 0.75f;
+constexpr float IMU_MAX_CALIBRATION_GRAVITY_G = 1.25f;
+constexpr uint32_t IMU_I2C_TIMEOUT_US = 3000UL;
 constexpr float COMPLEMENTARY_ALPHA = 0.98f;
 constexpr float MAX_SAFE_TILT_DEG = 32.0f;
 
@@ -73,10 +78,9 @@ constexpr uint8_t SERVO_LEFT_DEG = 145;
 constexpr uint8_t SERVO_RIGHT_DEG = 35;
 constexpr uint16_t SERVO_SETTLE_MS = 250;
 constexpr uint16_t SONAR_RETRY_MS = 65;
+constexpr uint16_t FRONT_RANGE_MAX_AGE_MS = 150;
 constexpr uint16_t TURN_DURATION_MS = 650;
-constexpr uint16_t REVERSE_DURATION_MS = 300;
 constexpr float TURN_BIAS_PWM = 38.0f;
-constexpr float REVERSE_SPEED_MM_S = -55.0f;
 
 // If scan directions are reversed by your bracket, swap LEFT and RIGHT angles.
 constexpr unsigned long SERIAL_BAUD = 115200UL;

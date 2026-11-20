@@ -1,6 +1,8 @@
 #include "imu_mpu6050.h"
 #include "config.h"
+#include "imu_calibration.h"
 #include <Wire.h>
+#include <avr/wdt.h>
 #include <math.h>
 
 namespace {
@@ -11,6 +13,7 @@ constexpr uint8_t REG_ACCEL_CONFIG = 0x1C;
 constexpr uint8_t REG_ACCEL_XOUT_H = 0x3B;
 constexpr uint8_t REG_PWR_MGMT_1 = 0x6B;
 constexpr float GYRO_LSB_PER_DPS = 131.0f;
+constexpr float ACCEL_LSB_PER_G = 16384.0f;
 constexpr float RAD_TO_DEG_F = 57.2957795f;
 }
 
@@ -18,6 +21,9 @@ bool MPU6050::begin() {
   initialized_ = false;
   filterInitialized_ = false;
   Wire.begin();
+  // Bound I2C stalls so a missing or wedged IMU cannot hang the control system.
+  Wire.setWireTimeout(IMU_I2C_TIMEOUT_US, true);
+  Wire.clearWireTimeoutFlag();
   Wire.setClock(400000UL);
   if (!writeRegister(REG_PWR_MGMT_1, 0x01)) return false;
   delay(50);
@@ -34,15 +40,24 @@ bool MPU6050::writeRegister(uint8_t reg, uint8_t value) {
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(reg);
   Wire.write(value);
-  return Wire.endTransmission() == 0;
+  const uint8_t status = Wire.endTransmission();
+  const bool timedOut = Wire.getWireTimeoutFlag();
+  if (timedOut) Wire.clearWireTimeoutFlag();
+  return status == 0 && !timedOut;
 }
 
 bool MPU6050::readRegisters(uint8_t firstReg, uint8_t *buffer, uint8_t length) {
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(firstReg);
-  if (Wire.endTransmission(false) != 0) return false;
+  const uint8_t addressStatus = Wire.endTransmission(false);
+  const bool addressTimedOut = Wire.getWireTimeoutFlag();
+  if (addressTimedOut) Wire.clearWireTimeoutFlag();
+  if (addressStatus != 0 || addressTimedOut) return false;
+
   const uint8_t received = Wire.requestFrom(MPU6050_ADDRESS, length, (uint8_t)true);
-  if (received != length) {
+  const bool readTimedOut = Wire.getWireTimeoutFlag();
+  if (readTimedOut) Wire.clearWireTimeoutFlag();
+  if (readTimedOut || received != length) {
     while (Wire.available()) (void)Wire.read();
     return false;
   }
@@ -69,21 +84,35 @@ bool MPU6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gx,
 bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
                         float &gyroBiasDps) {
   if (!initialized_ || samples < 100) return false;
-  float angleSum = 0.0f;
-  float gyroSum = 0.0f;
+  ImuCalibrationAccumulator accumulator;
 
   for (uint16_t i = 0; i < samples; ++i) {
     int16_t ax, ay, az, gx, gy, gz;
     if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
-    const float accelAngle = atan2f(-static_cast<float>(ax),
-                                    static_cast<float>(az)) * RAD_TO_DEG_F;
-    angleSum += accelAngle;
-    gyroSum += static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+
+    const float axF = static_cast<float>(ax);
+    const float ayF = static_cast<float>(ay);
+    const float azF = static_cast<float>(az);
+    const float accelAngle = atan2f(-axF, azF) * RAD_TO_DEG_F;
+    const float gyroRateDps = static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    const float accelMagnitudeG =
+        sqrtf(axF * axF + ayF * ayF + azF * azF) / ACCEL_LSB_PER_G;
+
+    accumulator.add(accelAngle, gyroRateDps, accelMagnitudeG);
+    wdt_reset();
     delay(5);
   }
 
-  zeroAngleDeg = angleSum / static_cast<float>(samples);
-  gyroBiasDps = gyroSum / static_cast<float>(samples);
+  ImuCalibrationResult result{};
+  if (!accumulator.evaluate(IMU_MAX_CALIBRATION_ANGLE_STDDEV_DEG,
+                            IMU_MAX_CALIBRATION_GYRO_STDDEV_DPS,
+                            IMU_MIN_CALIBRATION_GRAVITY_G,
+                            IMU_MAX_CALIBRATION_GRAVITY_G, result)) {
+    return false;
+  }
+
+  zeroAngleDeg = result.meanAngleDeg;
+  gyroBiasDps = result.meanGyroDps;
   filteredPitchDeg_ = 0.0f;
   filterInitialized_ = true;
   return true;

@@ -4,41 +4,37 @@
 int main() {
   const NavigationDecision leftClear =
       chooseNavigationDecision(true, 900, true, 300, 450);
-  assert(leftClear.valid && leftClear.turnDirection == -1 &&
-         !leftClear.reverseFirst);
+  assert(leftClear.valid && leftClear.turnDirection == -1);
 
   const NavigationDecision rightClear =
       chooseNavigationDecision(true, 250, true, 800, 450);
-  assert(rightClear.valid && rightClear.turnDirection == 1 &&
-         !rightClear.reverseFirst);
+  assert(rightClear.valid && rightClear.turnDirection == 1);
 
   const NavigationDecision oneValidLeft =
       chooseNavigationDecision(true, 700, false, 0, 450);
-  assert(oneValidLeft.valid && oneValidLeft.turnDirection == -1 &&
-         !oneValidLeft.reverseFirst);
+  assert(oneValidLeft.valid && oneValidLeft.turnDirection == -1);
 
   const NavigationDecision oneValidRight =
       chooseNavigationDecision(false, 0, true, 650, 450);
-  assert(oneValidRight.valid && oneValidRight.turnDirection == 1 &&
-         !oneValidRight.reverseFirst);
+  assert(oneValidRight.valid && oneValidRight.turnDirection == 1);
 
+  // Invalid data is unknown, even if the stored numeric field looks clear.
   const NavigationDecision unknown =
-      chooseNavigationDecision(false, 0, false, 0, 450);
+      chooseNavigationDecision(false, 2500, false, 2500, 450);
   assert(!unknown.valid && unknown.turnDirection == 0);
 
   const NavigationDecision blockedUnknown =
       chooseNavigationDecision(true, 200, false, 0, 450);
   assert(!blockedUnknown.valid && blockedUnknown.turnDirection == 0);
 
+  // Both sides blocked is a hold condition; there is no rear sensor for reverse.
   const NavigationDecision bothBlocked =
       chooseNavigationDecision(true, 220, true, 350, 450);
-  assert(bothBlocked.valid && bothBlocked.turnDirection == 1 &&
-         bothBlocked.reverseFirst);
+  assert(!bothBlocked.valid && bothBlocked.turnDirection == 0);
 
   const NavigationDecision equalClearance =
       chooseNavigationDecision(true, 600, true, 600, 450);
-  assert(equalClearance.valid && equalClearance.turnDirection == 1 &&
-         !equalClearance.reverseFirst);
+  assert(equalClearance.valid && equalClearance.turnDirection == 1);
 
   return 0;
 }

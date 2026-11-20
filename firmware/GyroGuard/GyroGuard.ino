@@ -110,6 +110,8 @@ void setup() {
 
   Serial.println(F("\nGyroGuard boot"));
   Serial.println(F("Keep robot upright and motionless during IMU calibration."));
+  // Cover sensor startup and calibration as well as the main control loop.
+  wdt_enable(WDTO_250MS);
 
   if (!imu.begin()) {
     latchFault(F("MPU6050 not detected / I2C setup failed"));
@@ -132,8 +134,6 @@ void setup() {
   Serial.println(gyroBiasDps, 4);
   Serial.println(F("Balance loop armed. Keep a hand near the power switch."));
   Serial.println(F("Autonomous mode is disabled. Send 'a' only after balance tuning."));
-
-  wdt_enable(WDTO_250MS);
 }
 
 void loop() {
