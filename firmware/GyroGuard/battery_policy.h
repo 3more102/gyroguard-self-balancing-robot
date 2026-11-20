@@ -13,6 +13,13 @@ inline uint16_t batteryMillivoltsFromAdc(uint16_t adcReading,
   return static_cast<uint16_t>((numerator + 511U) / 1023U);
 }
 
+// A missing divider or out-of-range reading must not authorize autonomous travel.
+inline bool batteryVoltagePlausible(uint16_t batteryMv,
+                                    uint16_t minimumMv,
+                                    uint16_t maximumMv) {
+  return batteryMv >= minimumMv && batteryMv <= maximumMv;
+}
+
 // Apply hysteresis so load transients do not repeatedly arm/disarm autonomy.
 inline bool batteryTravelInhibited(bool currentlyInhibited,
                                    uint16_t batteryMv,
