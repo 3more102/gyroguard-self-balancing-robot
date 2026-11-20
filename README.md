@@ -87,6 +87,7 @@ Host unit tests (requires a C++11 compiler):
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
+- If both side scans are blocked or uncertain, the robot holds position. It does not reverse without rear-facing sensing.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
@@ -106,6 +107,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
 - A single forward scanner does not provide full 360-degree perception.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
+- If both side measurements are below the clearance threshold, the robot holds rather than reversing without a rear-facing sensor.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
 
