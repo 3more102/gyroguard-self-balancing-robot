@@ -93,6 +93,9 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   Serial.print(F(",speed=")); Serial.print(measuredSpeedMmS, 1);
   Serial.print(F(",targetAngle=")); Serial.print(targetAngleDeg, 2);
   Serial.print(F(",motor=")); Serial.print(motorCommand, 1);
+  Serial.print(F(",rangeMm="));
+  if (navigation.frontDistanceValid()) Serial.print(navigation.frontDistanceMm());
+  else Serial.print(-1);
   Serial.print(F(",auto=")); Serial.print(navigation.autonomous() ? 1 : 0);
   Serial.print(F(",fault=")); Serial.println(faultLatched ? 1 : 0);
 }
