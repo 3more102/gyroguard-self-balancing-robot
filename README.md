@@ -40,6 +40,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     firmware/GyroGuard/
       GyroGuard.ino
       config.h
+      navigation_policy.h
       pid.h / pid.cpp
       imu_mpu6050.h / imu_mpu6050.cpp
       encoder.h / encoder.cpp
@@ -49,6 +50,9 @@ Choose motors whose stall current is within the driver and battery limits. The T
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_navigation_policy.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -83,7 +87,9 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+3. **Navigation:** the HC-SR04 is scanned at center during travel, then left/right after an obstacle is detected. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+
+The navigation logic is fail-closed: autonomous forward motion requires a valid front range measurement. An invalid/missing echo holds forward speed at zero. A turn is selected only when at least one side returns a valid measurement beyond the clearance threshold; otherwise the robot holds and rechecks the forward path instead of guessing a direction.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
