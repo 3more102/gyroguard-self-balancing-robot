@@ -10,6 +10,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Encoder-motion watchdog for autonomous straight travel and differential turns
+- 2S Li-ion battery-voltage monitor with low-voltage autonomous-travel inhibit
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown, invalid or stale sensor data never authorizes forward motion or an unverified turn
@@ -36,6 +37,7 @@ Exactly **two driven wheels**, one on each side, on the same axle. No caster or 
 | Range sensor | HC-SR04 |
 | Scanner | SG90 micro servo |
 | Battery | Protected 2-cell Li-ion pack (7.4 V nominal), sized for motor current |
+| Battery monitor | 10 kΩ / 10 kΩ divider and 100 nF filter to A2 |
 | Logic supply | Regulated 5 V buck converter for Uno and sensors |
 | Chassis | Rigid two-wheel frame; IMU mounted close to the axle |
 
@@ -55,6 +57,8 @@ Choose motors whose stall current is within the driver and battery limits. The T
       encoder.h / encoder.cpp
       encoder_math.h
       motion_guard.h
+      battery_monitor.h / battery_monitor.cpp
+      battery_policy.h
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       sonar_math.h
@@ -82,6 +86,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_servo_center_settle.cpp
       test_balance_arming.cpp
       test_motion_guard.cpp
+      test_battery_policy.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -120,6 +125,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-arm-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
     /tmp/gyroguard-motion-guard-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
+    /tmp/gyroguard-battery-policy-test
 
 CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
@@ -128,12 +135,13 @@ CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and c
 - Motor control and autonomous movement are **disabled on boot**.
 - The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
 - MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction causes a latched motor-off fault.
+- Autonomous travel is inhibited when the 2S battery reading is invalid or at/below 6.8 V; after a low-voltage trip, recovery to 7.0 V is required.
 - The robot calibrates the IMU while it is held upright and stationary.
 - After calibration, motor outputs remain disabled.
 - Front sonar measurements and range telemetry continue while autonomous travel is disabled; this diagnostic mode always commands zero translation.
 - The center servo settles before forward ranging after startup, mode changes and scans.
 - Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing. The pitch sample must be no older than 15 ms.
-- Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
+- Send 'a' only after balance-only operation is stable and the battery reading is valid and above 6.8 V. After a low-voltage trip, it must recover to at least 7.0 V before travel can resume.
 - During straight autonomous travel, both encoders must report motion within 750 ms; during a differential turn, at least one must report motion within 400 ms. A timeout inhibits autonomous travel and returns the velocity target to upright while balance remains active.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
@@ -151,7 +159,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown, invalid or stale range readings inhibit translation instead of being interpreted as clear space. No reverse is commanded without rear sensing.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, balance-armed state and encoder-fault state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, balance-armed state and encoder-fault state; battery voltage and travel-inhibit status are reported once per second. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Stage 2 mathematical model
 
