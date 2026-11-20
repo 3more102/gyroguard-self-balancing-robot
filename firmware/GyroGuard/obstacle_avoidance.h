@@ -26,7 +26,7 @@ private:
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
     TURNING,
-    REVERSING
+    SENSOR_HOLD
   };
 
   void startScan(uint32_t nowMs);
@@ -45,5 +45,7 @@ private:
   bool frontDistanceValid_;
   bool haveLeft_;
   bool haveRight_;
+  bool leftValid_;
+  bool rightValid_;
   float turnDirection_;
 };
