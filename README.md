@@ -9,6 +9,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - PID input guards reject NaN/infinite sensor or timing values and reset controller state safely
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
+- Encoder-motion watchdog for autonomous straight travel and differential turns
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown, invalid or stale sensor data never authorizes forward motion or an unverified turn
@@ -52,6 +53,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       imu_validation.h
       encoder.h / encoder.cpp
       encoder_math.h
+      motion_guard.h
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       navigation_policy.h
@@ -69,6 +71,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_imu_validation.cpp
       test_navigation_state_machine.cpp
       test_balance_arming.cpp
+      test_motion_guard.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -101,6 +104,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-navigation-state-machine-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
     /tmp/gyroguard-arm-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
+    /tmp/gyroguard-motion-guard-test
 
 CI runs all host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
@@ -113,13 +118,14 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - After calibration, motor outputs remain disabled.
 - Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing. The pitch sample must be no older than 15 ms.
 - Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
+- During straight autonomous travel, both encoders must report motion within 750 ms; during a differential turn, at least one must report motion within 400 ms. A timeout inhibits autonomous travel and returns the velocity target to upright while balance remains active.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
 - If neither side has verified clearance, the robot holds position and retries sensing; it does not reverse without rear sensing.
 - Send 's' to stop autonomous travel while keeping balance active.
 - Send 'd' to disarm motor outputs; the robot will fall unless physically supported.
 - Send 't' to toggle telemetry; send '?' for commands.
-- A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- A tilt, IMU or control-timing fault latches the motor driver off. An encoder-feedback fault inhibits autonomous travel and returns the velocity target to upright while balance remains active; it blocks autonomous re-arming until power-cycle after inspection.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
@@ -129,7 +135,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown, invalid or stale range readings inhibit translation instead of being interpreted as clear space. No reverse is commanded without rear sensing.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range and balance-armed state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, balance-armed state and encoder-fault state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
@@ -137,6 +143,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - A single forward scanner does not provide full 360-degree perception or rear coverage.
 - If neither side scan verifies sufficient clearance, the robot holds position and retries rather than reversing into an unobserved area.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
+- The encoder watchdog detects missing motion pulses, not every wiring, polarity or intermittent-count fault; verify both encoder channels during commissioning.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
 

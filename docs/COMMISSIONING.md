@@ -31,6 +31,8 @@ Before attempting to balance, temporarily test each motor at low PWM using a saf
 
 Also verify encoder signs: roll the robot forward by hand. Both encoder counts should increase and measured average speed should be positive. If one is negative, change that side's *_ENCODER_SIGN in config.h.
 
+During autonomous straight travel, both encoders must report movement at least once every 750 ms. During a differential turn, at least one encoder must report movement every 400 ms. A timeout inhibits autonomous travel and returns the velocity target to upright while balance remains active. The encoder fault is latched until power-cycle; inspect wiring, polarity, wheel obstruction and motor operation before resetting. These thresholds are initial guardrails and must be checked with the actual motor/encoder combination.
+
 Do not infer polarity from wire colors; motor and encoder wiring varies.
 
 ## Stage 4 — Balance-only test

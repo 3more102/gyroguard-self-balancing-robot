@@ -7,6 +7,7 @@
 #include "imu_mpu6050.h"
 #include "encoder.h"
 #include "encoder_math.h"
+#include "motion_guard.h"
 #include "motor_driver.h"
 #include "obstacle_avoidance.h"
 #include <math.h>
@@ -29,6 +30,9 @@ float pitchRateDps = 0.0f;
 float measuredSpeedMmS = 0.0f;
 float targetAngleDeg = 0.0f;
 bool faultLatched = false;
+bool encoderFaultLatched = false;
+bool encoderFaultMessagePending = false;
+const __FlashStringHelper *pendingEncoderFaultReason = nullptr;
 bool balanceArmed = false;
 bool pitchValid = false;
 uint32_t lastPitchSampleUs = 0;
@@ -39,6 +43,9 @@ uint32_t lastVelocityUs = 0;
 uint32_t lastTelemetryMs = 0;
 float velocityLoopDt = 0.02f;
 EncoderSnapshot previousCounts{0, 0};
+MotionDemandMode previousMotionDemand = MOTION_DEMAND_NONE;
+uint32_t lastLeftEncoderMotionUs = 0;
+uint32_t lastRightEncoderMotionUs = 0;
 
 void latchFault(const __FlashStringHelper *reason) {
   const bool firstFault = !faultLatched;
@@ -55,6 +62,20 @@ void latchFault(const __FlashStringHelper *reason) {
   }
 }
 
+void latchEncoderFault(const __FlashStringHelper *reason) {
+  const bool firstFault = !encoderFaultLatched;
+  encoderFaultLatched = true;
+  navigation.setAutonomous(false);
+  velocityPid.reset();
+  targetAngleDeg = 0.0f;
+  previousMotionDemand = MOTION_DEMAND_NONE;
+  // Defer serial output until after the current balance command is applied.
+  if (firstFault) {
+    pendingEncoderFaultReason = reason;
+    encoderFaultMessagePending = true;
+  }
+}
+
 bool updateVelocity(uint32_t nowUs) {
   const uint32_t elapsedUs = nowUs - lastVelocityUs;
   if (elapsedUs < VELOCITY_PERIOD_US) return false;
@@ -62,6 +83,8 @@ bool updateVelocity(uint32_t nowUs) {
   const EncoderSnapshot current = encoders.snapshot();
   const long leftDelta = current.left - previousCounts.left;
   const long rightDelta = current.right - previousCounts.right;
+  if (leftDelta != 0) lastLeftEncoderMotionUs = nowUs;
+  if (rightDelta != 0) lastRightEncoderMotionUs = nowUs;
   previousCounts = current;
 
   velocityLoopDt = static_cast<float>(elapsedUs) * 1.0e-6f;
@@ -122,10 +145,12 @@ void readSerialCommands() {
       motors.disable();
       printCommandResponse(F("DISARMED; support robot"), 28);
     } else if (command == 'a' || command == 'A') {
-      if (!faultLatched && balanceArmed) {
+      if (!faultLatched && !encoderFaultLatched && balanceArmed) {
         navigation.setAutonomous(true);
         velocityPid.reset();
         printCommandResponse(F("AUTO=1"), 8);
+      } else if (encoderFaultLatched) {
+        printCommandResponse(F("AUTO BLOCKED: encoder fault; power-cycle"), 44);
       } else if (!balanceArmed) {
         printCommandResponse(F("ARM FIRST: send b"), 20);
       }
@@ -145,9 +170,9 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   if (!telemetryEnabled ||
       static_cast<uint32_t>(nowMs - lastTelemetryMs) < TELEMETRY_PERIOD_MS) return;
 
-  // This compact record is at most 57 bytes including CR/LF. Do not block the
+  // This compact record is at most 61 bytes including CR/LF. Do not block the
   // 200 Hz control loop while waiting for the UART transmit buffer.
-  if (Serial.availableForWrite() < 60) return;
+  if (Serial.availableForWrite() < 63) return;
   lastTelemetryMs = nowMs;
 
   float speedDisplay = measuredSpeedMmS;
@@ -169,6 +194,7 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   else Serial.print(-1);
   Serial.print(F(",b=")); Serial.print(balanceArmed ? 1 : 0);
   Serial.print(F(",a=")); Serial.print(navigation.autonomous() ? 1 : 0);
+  Serial.print(F(",e=")); Serial.print(encoderFaultLatched ? 1 : 0);
   Serial.print(F(",f=")); Serial.println(faultLatched ? 1 : 0);
 }
 }
@@ -200,6 +226,8 @@ void setup() {
   previousCounts = encoders.snapshot();
   lastControlUs = micros();
   lastVelocityUs = lastControlUs;
+  lastLeftEncoderMotionUs = lastControlUs;
+  lastRightEncoderMotionUs = lastControlUs;
   lastTelemetryMs = millis();
 
   Serial.print(F("IMU zero angle: "));
@@ -263,7 +291,36 @@ void loop() {
     return;
   }
 
-  if (velocityUpdated) {
+  const bool translationDemand =
+      fabsf(nav.targetSpeedMmS) >= MIN_EXPECTED_TRAVEL_SPEED_MM_S;
+  const bool rotationDemand =
+      fabsf(nav.turnBiasPwm) >= MIN_EXPECTED_TURN_BIAS_PWM;
+  MotionDemandMode demandMode = MOTION_DEMAND_NONE;
+  if (translationDemand) demandMode = MOTION_DEMAND_TRANSLATION;
+  else if (rotationDemand) demandMode = MOTION_DEMAND_ROTATION;
+
+  // Start a fresh timeout window when autonomous motion begins or changes mode.
+  if (demandMode != previousMotionDemand) {
+    lastLeftEncoderMotionUs = nowUs;
+    lastRightEncoderMotionUs = nowUs;
+    previousMotionDemand = demandMode;
+  }
+
+  if (!encoderFaultLatched && navigation.autonomous() &&
+      encoderFeedbackTimedOut(nowUs, lastLeftEncoderMotionUs,
+                              lastRightEncoderMotionUs, demandMode,
+                              ENCODER_STALL_TIMEOUT_US,
+                              ENCODER_TURN_STALL_TIMEOUT_US)) {
+    if (demandMode == MOTION_DEMAND_TRANSLATION) {
+      latchEncoderFault(F("Missing wheel feedback during straight travel"));
+    } else if (demandMode == MOTION_DEMAND_ROTATION) {
+      latchEncoderFault(F("No wheel feedback during differential turn"));
+    }
+  }
+
+  if (encoderFaultLatched) {
+    targetAngleDeg = 0.0f;
+  } else if (velocityUpdated) {
     float targetSpeed = nav.targetSpeedMmS;
     if (targetSpeed > MAX_TARGET_SPEED_MM_S) targetSpeed = MAX_TARGET_SPEED_MM_S;
     if (targetSpeed < -MAX_TARGET_SPEED_MM_S) targetSpeed = -MAX_TARGET_SPEED_MM_S;
@@ -287,7 +344,14 @@ void loop() {
   }
 
   // Positive differential bias increases left-wheel speed: right turn.
-  motors.setSpeeds(balanceCommand + nav.turnBiasPwm,
-                   balanceCommand - nav.turnBiasPwm);
+  const float turnBias = encoderFaultLatched ? 0.0f : nav.turnBiasPwm;
+  motors.setSpeeds(balanceCommand + turnBias,
+                   balanceCommand - turnBias);
+  if (encoderFaultMessagePending && Serial.availableForWrite() >= 63) {
+    Serial.print(F("ENCODER FAULT: "));
+    Serial.println(pendingEncoderFaultReason);
+    encoderFaultMessagePending = false;
+    pendingEncoderFaultReason = nullptr;
+  }
   printTelemetry(millis(), balanceCommand);
 }
