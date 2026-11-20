@@ -37,6 +37,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | HC-SR04 TRIG | A0 |
 | HC-SR04 ECHO | A1 (PCINT9) |
 | SG90 signal | D9 |
+| Battery divider midpoint | A2 |
 
 Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code.
 
@@ -51,6 +52,20 @@ Do not connect the HC-SR04 Echo to a different pin without changing the pin-chan
 7. Keep motor wires twisted and physically separated from IMU and I2C wires. Add local bulk capacitance near the motor driver as recommended by its datasheet / breakout documentation.
 
 Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a battery to Uno VIN unless the voltage is suitable for the board regulator; a 2S pack may not provide enough headroom for a stable 5 V rail.
+
+## 4. Battery-voltage monitor
+
+Install this divider only for the documented protected **2S pack**:
+
+1. Connect switched battery positive (after the fuse and main switch) to a 10 kΩ, 1% resistor.
+2. Connect the other end of that resistor to Arduino A2.
+3. Connect a second 10 kΩ, 1% resistor from A2 to common ground.
+4. Add a 100 nF ceramic capacitor from A2 to ground, close to the Arduino.
+5. Verify with a multimeter that A2 is below 4.3 V with the 2S pack fully charged (8.4 V).
+
+The equal-resistor divider halves the pack voltage: 8.4 V becomes 4.2 V at A2. **Never connect battery positive directly to A2.** Do not use this divider with a 3S or higher-voltage pack. The firmware assumes a 5.0 V ADC reference by default; measure the regulated 5 V rail and adjust BATTERY_ADC_REFERENCE_MV in config.h to the measured value for better accuracy.
+
+The default software threshold inhibits autonomous travel at or below 6.8 V and clears the inhibit only at or above 7.0 V. It does not cut motor power or stop the balance loop. Keep a proper 2S BMS/protected pack: this monitor is not a substitute for cell-level protection.
 
 ## 4. TB6612FNG connections
 
@@ -93,11 +108,12 @@ Mount the HC-SR04 at the front, with a clear view and no frame parts in its beam
 
 The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn().
 
-## 8. Before applying power
+## 9. Before applying power
 
 - Verify polarity and continuity with a multimeter.
 - Check there is no short between battery positive and ground.
 - Confirm the motor driver and motors are rated for the battery.
 - Confirm all grounds are common.
+- Verify the battery divider is wired to A2 and never exposes A2 to the raw pack voltage.
 - Raise the wheels off the bench for the first motor test.
 - Keep a hand on the physical power switch.
