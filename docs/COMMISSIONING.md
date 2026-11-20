@@ -55,9 +55,10 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward the side with more measured clearance.
-6. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
-7. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+5. Send a only after balance-only operation is stable. The robot should hold travel until it has a fresh valid forward reading. If an obstacle is inside the stop distance, it scans left and right.
+6. A turn is allowed only when both side readings are valid and at least one side meets OBSTACLE_CLEAR_MM. Otherwise, the robot remains stationary and retries the centre measurement.
+7. After a turn, the robot waits for another valid centre reading before resuming forward travel.
+8. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
@@ -75,7 +76,9 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-After a fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid or uncertain ultrasonic range is a navigation hold, not a balance fault: forward travel is set to zero while the balance loop remains active.
+
+After a latched balance fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
