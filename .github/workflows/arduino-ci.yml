@@ -43,6 +43,14 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
           /tmp/gyroguard-motion-guard-test
+      - name: Test encoder velocity conversion
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_encoder_math.cpp -o /tmp/gyroguard-encoder-math-test
+          /tmp/gyroguard-encoder-math-test
+      - name: Test reset-cause policy
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_reset_policy.cpp -o /tmp/gyroguard-reset-policy-test
+          /tmp/gyroguard-reset-policy-test
 
   model-analysis:
     runs-on: ubuntu-latest
@@ -104,4 +112,5 @@ jobs:
           }
 
           check_build arduino:avr:uno
-          check_build arduino:avr:nano
+          check_build arduino:avr:nano:cpu=atmega328
+          check_build arduino:avr:nano:cpu=atmega328old
