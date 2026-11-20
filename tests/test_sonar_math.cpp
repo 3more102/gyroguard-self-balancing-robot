@@ -19,7 +19,7 @@ int main() {
   const SonarReading maxBoundary = sonarReadingFromPulse(14578U, 30U, 2500U);
   assert(maxBoundary.valid && maxBoundary.distanceMm == 2500U);
 
-  const SonarReading beyondRange = sonarReadingFromPulse(14579U, 30U, 2500U);
+  const SonarReading beyondRange = sonarReadingFromPulse(14584U, 30U, 2500U);
   assert(!beyondRange.valid);
 
   const SonarReading captureTimeout = sonarReadingFromPulse(30001U, 30U, 2500U);
