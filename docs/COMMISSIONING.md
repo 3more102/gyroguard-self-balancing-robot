@@ -18,7 +18,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 4. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
 5. If not, correct the IMU orientation/axis mapping before continuing.
 
-The calibration assumes the chassis is held at its intended upright angle. The firmware also checks pitch variation, gyro motion and acceleration magnitude over the sample window. If the check fails, the motor driver remains disabled: hold the robot upright and still, inspect the IMU mount, then power-cycle to retry.
+The calibration assumes the chassis is held at its intended upright angle. Across 500 samples, the firmware requires pitch-angle standard deviation at or below 1.5 degrees, Y-axis and total gyro-rate standard deviations at or below 2.0 degrees/second, mean acceleration magnitude between 0.75 g and 1.25 g, and acceleration-magnitude standard deviation at or below 0.10 g. These are screening limits, not proof of a calibrated or mechanically safe robot. If the check fails, the motor driver remains disabled: hold the robot upright and still, inspect the IMU mount, then power-cycle to retry.
 
 ## Stage 3 — Verify motor polarity with wheels raised
 
