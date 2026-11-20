@@ -63,6 +63,8 @@ Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a batt
 
 Confirm the breakout's pin labels; board layouts differ. Check the motor stall current against the exact driver board's continuous and peak limits. Do not assume a module can safely drive any small DC motor.
 
+**STBY safety:** STBY is active-high. The TB6612FNG IC has an internal pull-down and enters standby when STBY is low or left open. Check that your breakout has not added an external pull-up to STBY. See the [Toshiba TB6612FNG datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf?did=10660&prodName=TB6612FNG).
+
 ## 5. MPU-6050 mounting
 
 Mount the IMU rigidly on the chassis, close to the axle and away from motor vibration. For the default code orientation:
