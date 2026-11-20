@@ -44,6 +44,17 @@ constexpr uint32_t VELOCITY_PERIOD_US = 20000UL;     // 50 Hz
 constexpr uint32_t TELEMETRY_PERIOD_MS = 100UL;      // 10 Hz
 constexpr uint32_t MAX_CONTROL_GAP_US = 20000UL;
 
+// Battery monitor for the protected 2S Li-ion pack.
+// Use a 10k/10k divider from switched battery positive to A2/GND.
+// The default ADC reference is the regulated 5V rail; calibrate it with a DMM.
+constexpr uint8_t PIN_BATTERY_SENSE = A2;
+constexpr uint16_t BATTERY_ADC_REFERENCE_MV = 5000;
+constexpr uint8_t BATTERY_DIVIDER_RATIO = 2;
+constexpr uint16_t BATTERY_SAMPLE_PERIOD_MS = 100;
+constexpr uint8_t BATTERY_FILTER_DIVISOR = 4;
+constexpr uint16_t LOW_BATTERY_INHIBIT_MV = 6800;
+constexpr uint16_t LOW_BATTERY_RECOVERY_MV = 7000;
+
 // MPU-6050
 constexpr uint8_t MPU6050_ADDRESS = 0x68; // AD0 low; use 0x69 if AD0 high
 constexpr uint16_t IMU_CALIBRATION_SAMPLES = 500;
