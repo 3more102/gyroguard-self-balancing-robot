@@ -45,6 +45,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       pid.h / pid.cpp
       range_guard.h
       encoder_math.h
+      watchdog_startup.h / watchdog_startup.cpp
       imu_mpu6050.h / imu_mpu6050.cpp
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
@@ -55,6 +56,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+      AVR_WATCHDOG.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
@@ -103,6 +105,7 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- The ATmega328P watchdog reset cause is captured and reported during early startup; see [AVR_WATCHDOG.md](docs/AVR_WATCHDOG.md).
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
