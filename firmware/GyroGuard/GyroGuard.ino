@@ -2,6 +2,7 @@
 #include <avr/wdt.h>
 #include "config.h"
 #include "watchdog_startup.h"
+#include "reset_policy.h"
 #include "arm_guard.h"
 #include "pid.h"
 #include "imu_mpu6050.h"
@@ -225,8 +226,21 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   batteryMonitor.begin();
   batteryMonitor.update(millis());
-  if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
-    Serial.println(F("Previous reset cause: watchdog timeout; balance remains disarmed."));
+  Serial.print(F("Reset flags: MCUSR=0x"));
+  Serial.print(static_cast<uint8_t>(gyroguard_mcusr_reset_cause), HEX);
+  Serial.print(F(" Optiboot=0x"));
+  Serial.println(static_cast<uint8_t>(gyroguard_bootloader_reset_cause), HEX);
+
+  const uint8_t resetCause = GyroGuardReset::selectResetCause(
+      static_cast<uint8_t>(gyroguard_mcusr_reset_cause),
+      static_cast<uint8_t>(gyroguard_bootloader_reset_cause));
+  if (GyroGuardReset::requiresInspection(resetCause)) {
+    if (GyroGuardReset::isBrownOutReset(resetCause)) {
+      latchFault(F("Brown-out reset detected; inspect battery and power wiring"));
+    } else {
+      latchFault(F("Application watchdog reset detected; inspect mechanism"));
+    }
+    return;
   }
   encoders.begin();
   navigation.begin();
