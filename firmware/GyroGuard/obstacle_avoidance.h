@@ -14,6 +14,7 @@ public:
   void begin();
   void setAutonomous(bool enabled);
   bool autonomous() const;
+  bool blocked() const;
   bool frontDistanceValid() const;
   uint16_t frontDistanceMm() const;
   NavigationCommand update(uint32_t nowMs, uint32_t nowUs);
@@ -26,7 +27,8 @@ private:
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
     TURNING,
-    REVERSING
+    REVERSING,
+    BLOCKED
   };
 
   void startScan(uint32_t nowMs);
@@ -43,7 +45,7 @@ private:
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
   bool frontDistanceValid_;
-  bool haveLeft_;
-  bool haveRight_;
-  float turnDirection_;
+  bool leftValid_;
+  bool rightValid_;
+  int8_t turnDirection_;
 };

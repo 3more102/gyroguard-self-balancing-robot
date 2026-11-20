@@ -97,6 +97,7 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   if (navigation.frontDistanceValid()) Serial.print(navigation.frontDistanceMm());
   else Serial.print(-1);
   Serial.print(F(",auto=")); Serial.print(navigation.autonomous() ? 1 : 0);
+  Serial.print(F(",navBlocked=")); Serial.print(navigation.blocked() ? 1 : 0);
   Serial.print(F(",fault=")); Serial.println(faultLatched ? 1 : 0);
 }
 }

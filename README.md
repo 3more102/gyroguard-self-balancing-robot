@@ -9,9 +9,11 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
+- Conservative no-path behavior: reverse briefly, then hold while balance remains active
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
+- Host-side tests for PID behavior and obstacle turn-selection policy
 
 > **Safety:** This is an engineering project, not a ready-to-drive appliance. Initial gains and mechanical parameters are starting points only. A self-balancing robot can move unexpectedly and fall. Commission it with the wheels raised, then use a tether or soft catch area. Keep hands, cables and loose clothing away from wheels.
 
@@ -45,10 +47,14 @@ Choose motors whose stall current is within the driver and battery limits. The T
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
+      navigation_policy.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_navigation_policy.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -75,6 +81,7 @@ Arduino CLI example:
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
+- If neither scan direction has confirmed clearance, the robot reverses briefly and enters a blocked hold. Inspect/reposition the robot before deliberately re-arming autonomous travel.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
@@ -83,9 +90,9 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Invalid side readings are treated as unknown, not as maximum clearance; if neither side meets the configured clearance threshold, the robot backs up briefly and then holds.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, autonomous state and blocked-navigation state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
