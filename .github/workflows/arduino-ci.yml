@@ -39,6 +39,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
           /tmp/gyroguard-arm-test
+      - name: Test encoder motion watchdog
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
+          /tmp/gyroguard-motion-guard-test
 
   model-analysis:
     runs-on: ubuntu-latest

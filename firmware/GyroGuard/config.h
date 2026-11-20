@@ -75,6 +75,13 @@ constexpr float VELOCITY_KI = 0.008f;     // degree / mm
 constexpr float MAX_LEAN_DEG = 5.0f;
 constexpr float MAX_TARGET_SPEED_MM_S = 180.0f;
 
+// Autonomous-motion feedback watchdogs. Straight travel needs both encoders;
+// a differential turn needs at least one wheel to report movement.
+constexpr uint32_t ENCODER_STALL_TIMEOUT_US = 750000UL;
+constexpr uint32_t ENCODER_TURN_STALL_TIMEOUT_US = 400000UL;
+constexpr float MIN_EXPECTED_TRAVEL_SPEED_MM_S = 20.0f;
+constexpr float MIN_EXPECTED_TURN_BIAS_PWM = 15.0f;
+
 // Navigation distances are millimetres.
 constexpr bool AUTO_DRIVE_ON_BOOT = false;
 constexpr float CRUISE_SPEED_MM_S = 100.0f;
