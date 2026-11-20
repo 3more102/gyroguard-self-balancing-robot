@@ -25,6 +25,7 @@ constexpr uint8_t PIN_RIGHT_ENC_B = 7;
 constexpr uint8_t PIN_SONAR_TRIG = A0;
 constexpr uint8_t PIN_SONAR_ECHO = A1;
 constexpr uint8_t PIN_SERVO = 9;        // Servo library uses Timer1
+constexpr uint8_t PIN_BATTERY_SENSE = A2; // 2S pack divider midpoint
 
 // Motor and encoder polarity. Verify with wheels raised.
 constexpr int8_t LEFT_MOTOR_SIGN = +1;
@@ -50,6 +51,17 @@ constexpr uint32_t IMU_I2C_TIMEOUT_US = 5000UL;
 constexpr uint16_t IMU_CALIBRATION_SAMPLES = 500;
 constexpr float COMPLEMENTARY_ALPHA = 0.98f;
 constexpr float MAX_SAFE_TILT_DEG = 32.0f;
+
+// 2S Li-ion pack monitor: equal 10 kOhm divider resistors, ratio 2:1.
+// Calibrate ADC reference against the actual regulated 5 V rail.
+constexpr uint16_t BATTERY_ADC_REFERENCE_MV = 5000;
+constexpr uint8_t BATTERY_DIVIDER_RATIO = 2;
+constexpr uint16_t BATTERY_SAMPLE_PERIOD_MS = 100;
+constexpr uint8_t BATTERY_FILTER_DIVISOR = 4;
+constexpr uint16_t BATTERY_MIN_VALID_MV = 5000;
+constexpr uint16_t BATTERY_MAX_VALID_MV = 9000;
+constexpr uint16_t LOW_BATTERY_INHIBIT_MV = 6800;
+constexpr uint16_t LOW_BATTERY_RECOVERY_MV = 7000;
 constexpr float ARM_TILT_LIMIT_DEG = 8.0f;
 constexpr float ARM_RATE_LIMIT_DPS = 10.0f;
 constexpr uint32_t MAX_ARM_SAMPLE_AGE_US = 15000UL; // Three 200 Hz control periods.
