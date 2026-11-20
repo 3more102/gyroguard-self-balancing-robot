@@ -19,15 +19,22 @@ int main() {
   assert(!batteryVoltagePlausible(9001, 5000, 9000));
 
   // Assert at/below the low threshold; do not assert just above it.
-  assert(batteryTravelInhibited(false, 6800, 6800, 7000));
-  assert(!batteryTravelInhibited(false, 6801, 6800, 7000));
+  assert(batteryTravelInhibited(false, 6800, 8000, true, 6800, 7000));
+  assert(!batteryTravelInhibited(false, 6801, 8000, true, 6800, 7000));
 
-  // Once inhibited, require the higher recovery threshold.
-  assert(batteryTravelInhibited(true, 6800, 6800, 7000));
-  assert(batteryTravelInhibited(true, 6999, 6800, 7000));
-  assert(!batteryTravelInhibited(true, 7000, 6800, 7000));
+  // Once inhibited, both raw and filtered readings must reach recovery.
+  assert(batteryTravelInhibited(true, 8000, 6999, true, 6800, 7000));
+  assert(batteryTravelInhibited(true, 6999, 8000, true, 6800, 7000));
+  assert(!batteryTravelInhibited(true, 7000, 7000, true, 6800, 7000));
 
-  // A recovered battery must remain clear above the inhibit threshold.
-  assert(!batteryTravelInhibited(false, 7400, 6800, 7000));
+  // Invalid samples fail closed and cannot clear a previously latched inhibit.
+  assert(batteryTravelInhibited(true, 10000, 8000, false, 6800, 7000));
+  assert(batteryTravelInhibited(true, 6900, 8000, true, 6800, 7000));
+  assert(batteryTravelInhibited(false, 10000, 8000, false, 6800, 7000));
+  assert(batteryTravelInhibited(true, 6900, 6999, true, 6800, 7000));
+
+  // Once recovered, the lower threshold provides hysteresis.
+  assert(!batteryTravelInhibited(false, 6900, 6900, true, 6800, 7000));
+  assert(batteryTravelInhibited(false, 6800, 8000, true, 6800, 7000));
   return 0;
 }
