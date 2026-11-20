@@ -14,6 +14,8 @@ public:
   void begin();
   void setAutonomous(bool enabled);
   bool autonomous() const;
+  bool frontDistanceValid() const;
+  uint16_t frontDistanceMm() const;
   NavigationCommand update(uint32_t nowMs, uint32_t nowUs);
 
 private:
@@ -39,6 +41,8 @@ private:
   uint32_t lastSonarStartMs_;
   uint16_t leftDistanceMm_;
   uint16_t rightDistanceMm_;
+  uint16_t frontDistanceMm_;
+  bool frontDistanceValid_;
   bool haveLeft_;
   bool haveRight_;
   float turnDirection_;
