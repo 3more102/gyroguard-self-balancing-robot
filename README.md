@@ -87,7 +87,7 @@ Host unit tests (requires a C++11 compiler):
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
-- The robot calibrates the IMU while it is held upright and stationary. Calibration is rejected if measured motion, vibration or acceleration magnitude is outside the configured stability limits.
+- The robot calibrates the IMU while it is held upright and stationary. Calibration is rejected if measured motion, vibration or acceleration magnitude is outside the defined stability limits.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
