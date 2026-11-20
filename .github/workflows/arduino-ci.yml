@@ -20,15 +20,53 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
           /tmp/gyroguard-navigation-test
 
-  compile-uno:
+  compile-avr-targets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
-      - name: Install AVR core
+      - name: Install AVR core and dependencies
         run: |
           arduino-cli core update-index
           arduino-cli core install arduino:avr
           arduino-cli lib install Servo
-      - name: Compile for Arduino Uno
-        run: arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
+      - name: Compile Uno and classic Nano with memory budgets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          check_build() {
+            local fqbn="$1"
+            local output
+            local flash_bytes
+            local sram_bytes
+
+            if ! output="$(arduino-cli compile --fqbn "$fqbn" firmware/GyroGuard 2>&1)"; then
+              printf '%s\n' "$output"
+              return 1
+            fi
+
+            printf '%s\n' "$output"
+            flash_bytes="$(sed -nE 's/^Sketch uses ([0-9]+) bytes.*/\1/p' <<<"$output" | tail -n 1)"
+            sram_bytes="$(sed -nE 's/^Global variables use ([0-9]+) bytes.*/\1/p' <<<"$output" | tail -n 1)"
+
+            if [[ -z "$flash_bytes" || -z "$sram_bytes" ]]; then
+              echo "Could not parse the Arduino memory report for $fqbn."
+              return 1
+            fi
+
+            if (( flash_bytes > 24000 )); then
+              echo "Flash budget exceeded for $fqbn: $flash_bytes > 24000 bytes."
+              return 1
+            fi
+
+            if (( sram_bytes > 1200 )); then
+              echo "Static SRAM budget exceeded for $fqbn: $sram_bytes > 1200 bytes."
+              return 1
+            fi
+
+            echo "Resource budget passed for $fqbn: flash=$flash_bytes bytes, static_sram=$sram_bytes bytes."
+          }
+
+          check_build arduino:avr:uno
+          check_build arduino:avr:nano

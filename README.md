@@ -51,6 +51,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     docs/
       HARDWARE.md
       COMMISSIONING.md
+      RESOURCE_BUDGETS.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
@@ -78,6 +79,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-pid-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
     /tmp/gyroguard-navigation-test
+
+CI runs both host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
 ## First-use behavior
 
