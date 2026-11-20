@@ -26,7 +26,8 @@ private:
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
     TURNING,
-    REVERSING
+    REVERSING,
+    SAFE_STOP
   };
 
   void startScan(uint32_t nowMs);

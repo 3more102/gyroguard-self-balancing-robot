@@ -11,6 +11,8 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
+- Fail-closed autonomous travel when front sonar data is invalid
+- Safe stop when neither obstacle-scan direction provides a valid reading
 - Serial commands and commissioning documentation
 
 > **Safety:** This is an engineering project, not a ready-to-drive appliance. Initial gains and mechanical parameters are starting points only. A self-balancing robot can move unexpectedly and fall. Commission it with the wheels raised, then use a tether or soft catch area. Keep hands, cables and loose clothing away from wheels.
@@ -46,9 +48,13 @@ Choose motors whose stall current is within the driver and battery limits. The T
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       obstacle_avoidance.h / obstacle_avoidance.cpp
+      navigation_policy.h
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_navigation_policy.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -72,9 +78,12 @@ Arduino CLI example:
 - Autonomous movement is **disabled on boot**.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
-- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
-- Send 's' to request zero forward speed while keeping balance active.
-- Send 't' to toggle telemetry; send '?' for commands.
+- Front sonar measurements continue while autonomous movement is disabled, so range telemetry can be checked safely.
+- Autonomous travel remains inhibited until a valid forward range at or beyond the stop threshold is received. An invalid echo is never treated as clear space.
+- If both left/right obstacle scans are invalid, navigation enters SAFE_STOP rather than guessing a direction. Send s, inspect the sensor and wiring, then re-enable with a.
+- Send a over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
+- Send s to request zero forward speed while keeping balance active.
+- Send t to toggle telemetry; send ? for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
