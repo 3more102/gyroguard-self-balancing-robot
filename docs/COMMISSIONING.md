@@ -9,6 +9,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 3. With the battery disconnected, check all power rails and grounds.
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
+6. Compare the separate VBAT telemetry line with a multimeter at the pack terminals; adjust BATTERY_ADC_REFERENCE_MV if required.
 
 ## Stage 2 — Verify sensor identity and orientation
 
@@ -68,6 +69,17 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, SERVO_SETTLE_MS, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
+## Stage 6 — Verify low-battery travel inhibit
+
+1. Do not deeply discharge the Li-ion pack to test the threshold.
+2. With the wheels raised and a current-limited adjustable bench supply in place of the pack, lower the input until the filtered VBAT reading reaches 6800 mV.
+3. Verify `valid=1`, `low=1`, `inhibit=1`, and that the balance loop remains active. Send `a`; autonomous mode must remain disabled. If autonomy was already enabled before the voltage crossed the threshold, firmware must stop travel automatically.
+4. Keep the regulated 5 V logic supply on, disconnect only the divider's battery-positive sense lead, and verify `valid=0` and `inhibit=1`; sending `a` must remain blocked.
+5. Raise the supply to at least 7000 mV and wait for the filtered reading to recover. The inhibit clears, but autonomous travel remains disabled until `a` is sent again.
+6. Restore the protected 2S pack and confirm the VBAT reading agrees with a multimeter.
+
+Low voltage is a travel inhibit, not a motor power cut: the balance controller remains active so the robot can be brought to a safe stop. Keep an accessible physical power disconnect.
+
 
 | Command | Action |
 |---|---|
