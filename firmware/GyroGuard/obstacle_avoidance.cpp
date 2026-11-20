@@ -118,7 +118,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
     servo_.write(SERVO_CENTER_DEG);
     if (decision.valid) {
       turnDirection_ = static_cast<float>(decision.turnDirection);
-      state_ = decision.reverseFirst ? REVERSING : TURNING;
+      state_ = TURNING;
     } else {
       // Neither side has enough verified clearance. Hold position and retry.
       state_ = SENSOR_HOLD;
@@ -187,13 +187,6 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
       }
       // Positive bias speeds the left wheel relative to the right: turn right.
       return {0.0f, turnDirection_ * TURN_BIAS_PWM};
-
-    case REVERSING:
-      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= REVERSE_DURATION_MS) {
-        state_ = TURNING;
-        stateSinceMs_ = nowMs;
-      }
-      return {REVERSE_SPEED_MM_S, 0.0f};
 
     case SENSOR_HOLD:
       if (!sonar_.busy() &&
