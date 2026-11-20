@@ -95,7 +95,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   if (state_ == DRIVE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
-    frontDistanceAtMs_ = valid ? stateSinceMs_ : 0;
+    frontDistanceAtMs_ = valid ? nowMs : 0; // Timestamp when the completed echo is consumed.
 
     if (autonomous_) {
       if (!valid) {
@@ -136,7 +136,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   } else if (state_ == SENSOR_HOLD_MEASURE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
-    frontDistanceAtMs_ = valid ? stateSinceMs_ : 0;
+    frontDistanceAtMs_ = valid ? nowMs : 0; // Timestamp when the completed echo is consumed.
 
     if (!valid) {
       state_ = SENSOR_HOLD;
