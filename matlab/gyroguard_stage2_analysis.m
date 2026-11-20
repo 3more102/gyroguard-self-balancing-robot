@@ -19,6 +19,18 @@ end
 p = gyroguard_parameters();
 validateParameters(p);
 
+% Sign sanity: positive wheel torque must drive the axle forward and apply
+% the equal-and-opposite pitch torque to the body. Back-EMF must oppose
+% positive wheel speed relative to the body.
+positiveTestVoltage = min(1.0e-3, p.motorVoltageLimit_V);
+positiveTorqueForce = motorGeneralizedForce(positiveTestVoltage, 0.0, 0.0, p);
+assert(positiveTorqueForce(1) > 0.0 && positiveTorqueForce(2) < 0.0, ...
+    'Positive wheel torque must act forward on the axle and oppositely on the body.');
+backEmfForce = motorGeneralizedForce(0.0, 0.1, 0.0, p);
+assert(backEmfForce(1) < 0.0 && backEmfForce(2) > 0.0, ...
+    'Back-EMF must oppose positive wheel motion relative to the body.');
+signSanityPassed = true;
+
 [massEquivalent, bodyAxleInertia, motorForceGain, motorBackEmfDamping, ...
     effectiveDamping, rotorCrossInertia, determinant] = derivedParameters(p);
 uprightCoupling = p.bodyMass_kg * p.bodyComHeight_m + rotorCrossInertia;
@@ -72,6 +84,7 @@ fprintf('Motor-rotor cross-inertia contribution: %.6f kg m\n', rotorCrossInertia
 fprintf('Mass-matrix determinant at upright Delta: %.9f\n', determinant);
 fprintf('Maximum finite-difference error in A: %.3e\n', linearizationErrorA);
 fprintf('Maximum finite-difference error in B: %.3e\n', linearizationErrorB);
+fprintf('Motor generalized-force sign sanity: passed\n');
 fprintf('Open-loop poles (rad/s):\n');
 disp(openLoopPoles);
 fprintf('Controllability rank: %d / 4\n', controllabilityRank);
@@ -117,6 +130,7 @@ results.openLoopPoles = openLoopPoles;
 results.controllabilityRank = controllabilityRank;
 results.linearizationErrorA = linearizationErrorA;
 results.linearizationErrorB = linearizationErrorB;
+results.signSanityPassed = signSanityPassed;
 results.massEquivalent = massEquivalent;
 results.bodyAxleInertia = bodyAxleInertia;
 results.uprightCoupling = uprightCoupling;
@@ -229,7 +243,7 @@ B(4) = -(h0 + a * r) * Ku / Delta;
 end
 
 function dx = nonlinearDynamics(~, x, motorVoltage, p)
-[M, J, Ku, Be, ~, rotorCrossInertia, ~] = derivedParameters(p);
+[M, J, ~, ~, ~, rotorCrossInertia, ~] = derivedParameters(p);
 motorVoltage = min(max(motorVoltage, -p.motorVoltageLimit_V), ...
     p.motorVoltageLimit_V);
 
@@ -241,22 +255,31 @@ v = x(2);
 theta = x(3);
 thetaRate = x(4);
 
+motorQ = motorGeneralizedForce(motorVoltage, v, thetaRate, p);
 coupling = m * l * cos(theta) + rotorCrossInertia;
-effectivePitchDamping = p.pitchDamping_NmsPerRad + r^2 * Be;
 massMatrix = [M + m, coupling; ...
               coupling, J];
 
-rhs = [Ku * motorVoltage - ...
-       (p.translationalDamping_NsPerM + Be) * v + ...
-       r * Be * thetaRate + ...
+rhs = [motorQ(1) - p.translationalDamping_NsPerM * v + ...
        m * l * thetaRate^2 * sin(theta); ...
        m * g * l * sin(theta) - ...
-       r * Ku * motorVoltage + ...
-       r * Be * v - ...
-       effectivePitchDamping * thetaRate];
+       p.pitchDamping_NmsPerRad * thetaRate + motorQ(2)];
 
 accelerations = massMatrix \ rhs;
 dx = [v; accelerations(1); thetaRate; accelerations(2)];
+end
+
+function generalizedForce = motorGeneralizedForce(motorVoltage, linearVelocity, pitchRate, p)
+% Return generalized motor forces for q = [axle position; body pitch].
+% Motor torque acts between wheel and chassis: [tau/r; -tau].
+relativeMotorSpeed = p.motorGearRatio * ...
+    (linearVelocity / p.wheelRadius_m - pitchRate);
+motorCurrent = (motorVoltage - ...
+    p.motorBackEmfConstant_VsPerRad * relativeMotorSpeed) / ...
+    p.motorResistance_ohm;
+totalWheelTorque = 2.0 * p.motorEfficiency * p.motorGearRatio * ...
+    p.motorTorqueConstant_NmPerA * motorCurrent;
+generalizedForce = [totalWheelTorque / p.wheelRadius_m; -totalWheelTorque];
 end
 
 function [value, isterminal, direction] = tiltLimitEvent(~, x, limitRad)

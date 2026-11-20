@@ -10,15 +10,18 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
 
-## Stage 2 — Verify sensor orientation
+## Stage 2 — Verify sensor identity and orientation
 
 1. Keep motor power disconnected or wheels safely raised.
-2. Hold the robot upright and motionless during startup calibration (about 3 seconds).
-3. Watch the reported pitch telemetry.
-4. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
-5. If not, correct the IMU orientation/axis mapping before continuing.
+2. Hold the robot upright and completely still during startup calibration (about 3 seconds).
+3. The firmware checks the MPU-6050 WHO_AM_I register before configuring the sensor.
+4. The calibration window is accepted only when the mean pitch offset is within 15 degrees of upright, accelerometer-angle variation is low, the three-axis gyro rate is small and gravity magnitude remains plausible.
+5. If calibration fails, check the I2C wiring/address, secure the IMU mount, place the robot upright, and repeat calibration without moving it.
+6. Watch the reported pitch telemetry.
+7. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
+8. If not, correct the IMU orientation/axis mapping before continuing.
 
-The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
+The calibration thresholds in config.h are conservative firmware acceptance limits, not MPU-6050 datasheet accuracy specifications. A stable but substantially tilted pose or a moving sensor must not be accepted as the zero reference. Do not loosen the limits to hide mechanical vibration.
 
 ## Stage 3 — Verify motor polarity with wheels raised
 
@@ -74,6 +77,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 
 The motor driver is disabled and the fault is latched if:
 - IMU initialization or a runtime read fails
+- startup calibration is unstable or the sensor identity check fails
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 

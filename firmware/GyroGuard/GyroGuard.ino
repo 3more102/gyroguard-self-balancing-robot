@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <avr/wdt.h>
 #include "config.h"
+#include "watchdog_startup.h"
 #include "pid.h"
 #include "imu_mpu6050.h"
 #include "encoder.h"
@@ -103,6 +104,9 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
 void setup() {
   wdt_disable();
   Serial.begin(SERIAL_BAUD);
+  if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
+    Serial.println(F("Previous reset cause: watchdog timeout."));
+  }
   motors.begin();
   encoders.begin();
   navigation.begin();
@@ -116,7 +120,7 @@ void setup() {
   }
 
   if (!imu.calibrate(IMU_CALIBRATION_SAMPLES, imuZeroAngleDeg, gyroBiasDps)) {
-    latchFault(F("IMU calibration read failed"));
+    latchFault(F("IMU calibration unstable/failed; keep robot still"));
     return;
   }
 

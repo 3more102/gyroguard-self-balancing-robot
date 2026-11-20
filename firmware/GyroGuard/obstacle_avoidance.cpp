@@ -26,9 +26,10 @@ void ObstacleAvoidance::setAutonomous(bool enabled) {
   if (enabled == autonomous_) return;
 
   if (!enabled) {
-    // A side-scan echo must not be mistaken for a forward-facing reading
-    // after the servo is returned to its center position.
-    ignoreNextSonarResult_ =
+    // Discard any in-flight echo when travel is disabled. In particular,
+    // a side-scan echo must not be mistaken for a forward reading after the
+    // servo returns to center or autonomy is re-armed.
+    ignoreNextSonarResult_ = sonar_.busy() ||
         state_ == SCAN_LEFT_MEASURE ||
         state_ == SCAN_RIGHT_MEASURE ||
         state_ == SENSOR_HOLD_MEASURE;
@@ -94,7 +95,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   if (state_ == DRIVE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
-    frontDistanceAtMs_ = valid ? nowMs : 0;
+    frontDistanceAtMs_ = valid ? stateSinceMs_ : 0;
 
     if (autonomous_) {
       if (!valid) {
@@ -135,7 +136,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   } else if (state_ == SENSOR_HOLD_MEASURE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
-    frontDistanceAtMs_ = valid ? nowMs : 0;
+    frontDistanceAtMs_ = valid ? stateSinceMs_ : 0;
 
     if (!valid) {
       state_ = SENSOR_HOLD;
