@@ -9,9 +9,10 @@ The Arduino CI workflow validates:
 - Host PID controller tests.
 - Host obstacle-navigation policy tests.
 - Arduino Uno build (`arduino:avr:uno`).
-- Classic Nano build (`arduino:avr:nano`).
+- Classic Nano with the new Optiboot bootloader (`arduino:avr:nano:cpu=atmega328`).
+- Classic Nano with the old ATmegaBOOT bootloader (`arduino:avr:nano:cpu=atmega328old`).
 
-Both AVR builds use the same firmware directory and install the AVR core plus the Arduino Servo library.
+All AVR builds use the same firmware directory and install the AVR core plus the Arduino Servo library.
 
 ## Project guardrails
 
