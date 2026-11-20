@@ -2,31 +2,28 @@
 
 GyroGuard targets the ATmega328P used by the Arduino Uno R3 and classic Nano.
 
-## Why early startup handling is required
+## Startup handling
 
-After a watchdog system reset, the watchdog may remain enabled at its fastest prescaler. If the sketch waits until Arduino `setup()` to disable it, the application's C-runtime startup can consume the remaining watchdog interval and trigger another reset before `setup()` runs.
+After a watchdog system reset, the AVR watchdog may remain enabled. GyroGuard disables it in the early .init3 startup section, before normal application initialization and C++ global constructors. The hook runs after the bootloader has transferred control to the sketch; it cannot protect a bootloader that itself loops on an active watchdog.
 
-The `.init3` hook runs after the bootloader has transferred control to the sketch, but before normal application initialization and C++ global constructors. It disables the watchdog early enough to protect the sketch's startup sequence.
+Use an Optiboot-based Uno or Nano new-bootloader configuration when relying on watchdog recovery. The old ATmegaBOOT Nano bootloader may reset-loop before the sketch starts.
 
-**Important bootloader boundary:** `.init3` does not execute before or during bootloader code. If the watchdog can time out while the bootloader is running, that bootloader must itself disable or safely manage the watchdog. Verify the exact bootloader installed on the Uno/Nano being used; bootloader variants are not interchangeable for this behavior.
+## Reset-cause capture
 
-## Implementation
+- Optiboot clears MCUSR but passes the original reset flags to the application in register r2. GyroGuard captures r2 in .init0 before normal AVR startup code can reuse that register.
+- Legacy bootloaders may preserve MCUSR. The .init3 hook captures MCUSR and the application prefers it when nonzero.
+- If MCUSR is zero, the reset policy uses the Optiboot handoff only when it contains the safety-relevant watchdog or brown-out flags.
+- A watchdog flag combined with EXTRF is treated as an Optiboot upload-timeout event, not an application watchdog fault.
+- An application watchdog reset (WDRF without EXTRF) or a brown-out reset causes a latched startup fault. The motor driver remains disabled; balance cannot be re-armed until the robot is inspected and power-cycled.
 
-`firmware/GyroGuard/watchdog_startup.cpp`:
+## Runtime watchdog
 
-1. Runs from `.init3`, before normal application initialization.
-2. Copies `MCUSR` into the `.noinit` variable `gyroguard_reset_cause`.
-3. Clears `MCUSR`.
-4. Calls AVR-libc `wdt_disable()` using the required timed register sequence.
-
-The sketch reports a previous watchdog reset over Serial. The normal application can then enable its runtime watchdog after initialization. The balance controller starts disarmed after every reset and requires a deliberate 'b' command before motor control can resume. The existing loop must continue calling `wdt_reset()` within the configured timeout.
-
-The `wdt_disable()` call in `setup()` is retained as a defensive, harmless second disable; it is not the primary recovery mechanism.
+The sketch enables the runtime watchdog only after MPU-6050 identity validation and stationary calibration succeed. The main loop must continue calling wdt_reset() within the configured 250 ms timeout. The defensive wdt_disable() in setup() remains, but the .init3 hook is the primary startup recovery mechanism.
 
 ## Hardware safety
 
-The watchdog hook recovers the MCU; it does not replace a hardware motor-disable path. The TB6612FNG STBY input must remain low while the MCU is resetting. Check the exact motor-driver breakout for added pull-ups or other circuitry. If the module has no verified STBY pull-down, add an external 10 kΩ resistor from STBY to GND; do not add it blindly if the breakout already pulls STBY high. Verify the driver remains in standby during reset before connecting the motors.
+The watchdog hook recovers the MCU; it does not replace a hardware motor-disable path. Fit and verify the 10 kΩ pull-down on TB6612FNG STBY. Check the exact breakout for conflicting pull-ups. The firmware drives STBY low first when disabling the bridge.
 
 ## Validation
 
-GitHub Actions compiles the sketch for the supported AVR board targets. A physical watchdog-reset test should be performed with the wheels raised, motor supply disconnected or current-limited, and the motor driver's standby state verified before any powered balance test.
+GitHub Actions tests the reset-cause policy on the host and compiles Uno plus both classic Nano bootloader targets. A physical watchdog-reset test must be performed with wheels raised, motor supply disconnected or current-limited, and STBY verified in standby before any powered balance test.
