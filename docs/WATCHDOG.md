@@ -40,7 +40,7 @@ arduino-cli compile --fqbn arduino:avr:uno \
   firmware/GyroGuard
 ```
 
-The first boot sets the armed marker and allows a 15 ms watchdog reset. The following boot should detect the marker, print the startup fault and leave STBY low. Then power-cycle and upload the normal production build without the macro.
+The first boot sets the armed marker and allows a 15 ms watchdog reset. The following boot should detect the marker, print the startup fault and leave STBY low. While the bootloader is waiting for upload, flash the normal production build without the macro; a normal reboot with the test macro still compiled will deliberately trigger the test again.
 
 Do not run this test with motor power connected or the robot standing unsupported. If the test repeatedly resets, the installed bootloader did not preserve the marker as expected; stop and investigate rather than assuming reset recovery works.
 
