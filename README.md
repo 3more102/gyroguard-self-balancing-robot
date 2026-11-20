@@ -10,6 +10,8 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - TB6612FNG dual H-bridge driver
+- Fail-closed autonomous travel interlock for invalid or stale sonar data
+- Bounded reverse-and-rescan behavior; unknown scan directions never authorize a blind turn
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
 
@@ -45,11 +47,15 @@ Choose motors whose stall current is within the driver and battery limits. The T
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
+      navigation_safety.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+    tests/
+      test_pid.cpp
+      test_navigation_safety.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -68,15 +74,15 @@ Arduino CLI example:
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
     arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 
-CI runs the PID host tests and compiles both the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
+CI runs PID and navigation-safety host tests, then compiles both the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
-- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
-- Send 's' to request zero forward speed while keeping balance active.
+- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance. Forward travel remains inhibited until a fresh, valid, clear front range is received.
+- Send 's' to request zero forward speed while keeping balance active; any in-flight sonar measurement is discarded and must be reacquired before autonomous travel resumes.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
@@ -94,6 +100,9 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
 - A single forward scanner does not provide full 360-degree perception.
+- Invalid or stale forward sonar data blocks autonomous forward travel while balance remains active.
+- If a side scan is unknown and no other side is measured clear, the robot holds position and retries center sensing instead of turning blindly.
+- If both sides are measured but blocked, the robot performs at most three short reverse-and-rescan attempts before holding.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.

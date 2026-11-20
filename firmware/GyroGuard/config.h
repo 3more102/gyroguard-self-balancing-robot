@@ -73,8 +73,10 @@ constexpr uint8_t SERVO_LEFT_DEG = 145;
 constexpr uint8_t SERVO_RIGHT_DEG = 35;
 constexpr uint16_t SERVO_SETTLE_MS = 250;
 constexpr uint16_t SONAR_RETRY_MS = 65;
+constexpr uint16_t SONAR_DATA_TIMEOUT_MS = 250;
 constexpr uint16_t TURN_DURATION_MS = 650;
 constexpr uint16_t REVERSE_DURATION_MS = 300;
+constexpr uint8_t MAX_REVERSE_ATTEMPTS = 3;
 constexpr float TURN_BIAS_PWM = 38.0f;
 constexpr float REVERSE_SPEED_MM_S = -55.0f;
 

@@ -21,6 +21,7 @@ public:
 private:
   enum State : uint8_t {
     DRIVE,
+    SENSOR_HOLD,
     SCAN_LEFT_SETTLE,
     SCAN_LEFT_MEASURE,
     SCAN_RIGHT_SETTLE,
@@ -29,6 +30,7 @@ private:
     REVERSING
   };
 
+  void enterSensorHold(uint32_t nowMs);
   void startScan(uint32_t nowMs);
   void startSonar(uint32_t nowUs, uint32_t nowMs, State measureState);
   void consumeSonar(uint32_t nowMs);
@@ -39,11 +41,13 @@ private:
   bool autonomous_;
   uint32_t stateSinceMs_;
   uint32_t lastSonarStartMs_;
+  uint32_t lastFrontMeasurementMs_;
   uint16_t leftDistanceMm_;
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
   bool frontDistanceValid_;
-  bool haveLeft_;
-  bool haveRight_;
+  bool leftRangeValid_;
+  bool rightRangeValid_;
+  uint8_t reverseAttempts_;
   float turnDirection_;
 };

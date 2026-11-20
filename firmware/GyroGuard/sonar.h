@@ -7,6 +7,7 @@ public:
   void begin();
   void update(uint32_t nowUs);
   bool startMeasurement(uint32_t nowUs);
+  void cancel();
   // Returns true when a measurement completed; valid is false on timeout or
   // an out-of-range echo.
   bool takeDistanceMm(uint16_t &distanceMm, bool &valid);

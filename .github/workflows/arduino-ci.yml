@@ -11,10 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Test PID controller
+      - name: Run host unit tests
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test
           /tmp/gyroguard-pid-test
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_safety.cpp -o /tmp/gyroguard-navigation-safety-test
+          /tmp/gyroguard-navigation-safety-test
 
   compile-avr-targets:
     runs-on: ubuntu-latest

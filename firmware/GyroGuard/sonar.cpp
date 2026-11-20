@@ -13,6 +13,7 @@ void Ultrasonic::begin() {
   pinMode(PIN_SONAR_ECHO, INPUT);
   waiting_ = false;
   resultReady_ = false;
+  distanceMm_ = 0;
   valid_ = false;
 
   // Arduino Uno A1 = PCINT9 (pin-change interrupt group 1).
@@ -57,6 +58,20 @@ bool Ultrasonic::startMeasurement(uint32_t nowUs) {
   waiting_ = true;
   resultReady_ = false;
   return true;
+}
+
+void Ultrasonic::cancel() {
+  waiting_ = false;
+  resultReady_ = false;
+  distanceMm_ = 0;
+  valid_ = false;
+
+  noInterrupts();
+  echoRiseUs_ = 0;
+  echoPulseUs_ = 0;
+  echoComplete_ = false;
+  echoWaitingForRise_ = false;
+  interrupts();
 }
 
 void Ultrasonic::update(uint32_t nowUs) {

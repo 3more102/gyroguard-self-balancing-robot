@@ -55,16 +55,19 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward the side with more measured clearance.
-6. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
-7. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+5. Confirm the fail-safe interlock: with no valid front range, autonomous forward speed must remain zero while the balance loop stays active. A reading older than 250 ms is also treated as stale and blocks forward travel.
+6. Send 'a' only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward a measured clear side.
+7. If one side scan is invalid, the robot may turn only toward the other side when that side is measured clear. If neither side is known clear, it holds position and retries center sensing.
+8. If both sides are valid but blocked, the robot reverses briefly and rescans, with a maximum of three attempts before it holds position.
+9. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
+10. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
 | Command | Action |
 |---|---|
 | a | Enable autonomous cruise and obstacle avoidance |
-| s | Disable travel; keep balance loop active |
+| s | Disable travel; keep balance active and discard pending sonar data |
 | t | Toggle telemetry |
 | ? | Print command help |
 
@@ -75,7 +78,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-After a fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+A sonar navigation hold is not a balance fault: the balance loop remains active while travel is inhibited. After a latched motor fault, inspect the robot, correct the cause, and power-cycle. Do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
