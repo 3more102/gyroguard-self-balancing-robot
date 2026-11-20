@@ -48,6 +48,7 @@ Do not connect the HC-SR04 Echo to a different pin without changing the pin-chan
 4. Feed regulated 5 V to the Uno 5V pin, MPU-6050 VCC (only if your breakout supports 5 V input), HC-SR04 VCC and servo V+. The Uno must not also be powered from USB and an external 5 V rail at the same time unless the board's power arrangement explicitly supports it. During programming, disconnect the external 5 V feed or use a safe power-isolation method.
 5. Connect all grounds together: battery negative, buck ground, Uno GND, TB6612 GND, sensor grounds and servo ground.
 6. Do **not** power motors or the servo from the Uno 5 V pin. Servo current spikes can reset the controller; use a suitable 5 V buck rail with adequate peak-current capacity.
+7. Size the 5 V buck converter for the Uno, sensors and the servo's peak current together. Use the exact servo datasheet rather than its idle current.
 7. Keep motor wires twisted and physically separated from IMU and I2C wires. Add local bulk capacitance near the motor driver as recommended by its datasheet / breakout documentation.
 
 Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a battery to Uno VIN unless the voltage is suitable for the board regulator; a 2S pack may not provide enough headroom for a stable 5 V rail.
@@ -61,7 +62,13 @@ Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a batt
 - BO1/BO2 → right motor terminals
 - PWMA, AIN1, AIN2, PWMB, BIN1, BIN2 and STBY → pins in the table
 
-Confirm the breakout's pin labels; board layouts differ. Check the motor stall current against the exact driver board's continuous and peak limits. Do not assume a module can safely drive any small DC motor.
+Confirm the breakout's pin labels; board layouts differ.
+
+**Current limit — verify before selecting motors:** Toshiba's TB6612FNG datasheet specifies a maximum operating output current of **1.0 A per channel when VM is at least 4.5 V**. The **1.2 A per-channel** value is an absolute-maximum rating, not a continuous design target. The higher 2.0 A and 3.2 A figures apply only to tightly limited pulse conditions (20 ms at no more than 20% duty, and a single 10 ms pulse, respectively). These are not permission to run a motor above the operating current continuously. The actual breakout's PCB copper and thermal conditions can reduce usable current further.
+
+Use the motor manufacturer's stall-current specification at the maximum battery voltage when sizing the driver, because startup or a jam can approach stall current. If the motor/driver combination cannot stay within the driver's operating and thermal limits, choose a higher-current driver or a properly engineered current limit. Do not deliberately stall a motor as an informal test.
+
+Reference: [Toshiba TB6612FNG datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf?did=10660&prodName=TB6612FNG).
 
 ## 5. MPU-6050 mounting
 

@@ -9,7 +9,9 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
-- Fail-safe range gating: unknown sensor data never authorizes forward motion or an unverified turn
+- Fail-safe range gating: stale or unknown sensor data never authorizes forward motion or an unverified turn
+- No blind reverse: when neither scan direction is verified clear, navigation holds and re-scans because no rear sensor is installed
+- Startup IMU quality checks, bounded I²C transactions and watchdog coverage during calibration
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
@@ -47,14 +49,19 @@ Choose motors whose stall current is within the driver and battery limits. The T
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       navigation_policy.h
+      imu_calibration.h
+      range_guard.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+      VALIDATION.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
+      test_imu_calibration.cpp
+      test_range_guard.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -79,16 +86,22 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-pid-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
     /tmp/gyroguard-navigation-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_calibration.cpp -o /tmp/gyroguard-imu-calibration-test
+    /tmp/gyroguard-imu-calibration-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
+    /tmp/gyroguard-range-guard-test
 
-CI runs both host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
+CI runs both host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md) and the [hardware validation record](docs/VALIDATION.md).
 
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
-- The robot calibrates the IMU while it is held upright and stationary.
+- The robot calibrates the IMU while it is held upright and stationary; calibration rejects excessive motion and implausible gravity magnitude.
+- I²C transactions have a bounded timeout, and the watchdog is active during startup and calibration.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
-- Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
+- Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale range data holds translation at zero while balancing remains active.
+- If both scan directions are blocked or unknown, the robot holds and re-scans; it never reverses without rear sensing.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
@@ -107,7 +120,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
-- A single forward scanner does not provide full 360-degree perception.
+- A single forward scanner does not provide full 360-degree perception or rear coverage; no autonomous reverse maneuver is implemented.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.

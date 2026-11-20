@@ -7,16 +7,19 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
 2. Complete the wiring in HARDWARE.md.
 3. With the battery disconnected, check all power rails and grounds.
-4. Compile for Arduino Uno. Upload with the motor battery disconnected.
-5. Open Serial Monitor at 115200 baud.
+4. Identify the exact motor/gearbox models and check stall current at maximum battery voltage against the driver's operating and thermal limits in HARDWARE.md.
+5. Confirm the encoder's counts-per-revolution definition from its datasheet.
+6. Compile for Arduino Uno. Upload with the motor battery disconnected.
+7. Open Serial Monitor at 115200 baud.
 
 ## Stage 2 — Verify sensor orientation
 
 1. Keep motor power disconnected or wheels safely raised.
-2. Hold the robot upright and motionless during startup calibration (about 3 seconds).
-3. Watch the reported pitch telemetry.
-4. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
-5. If not, correct the IMU orientation/axis mapping before continuing.
+2. Hold the robot upright and completely motionless during startup calibration (about 3 seconds).
+3. The firmware checks accelerometer gravity magnitude and variation in measured angle and gyro rate. If calibration is rejected, power-cycle with the robot held still and inspect IMU mounting/wiring.
+4. Watch the reported pitch telemetry.
+5. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
+6. If not, correct the IMU orientation/axis mapping before continuing.
 
 The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
 
@@ -57,7 +60,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
 5. Send a only after balance-only operation is stable. The robot will not drive autonomously until it has a valid forward-range measurement.
 6. Confirm that an invalid forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
-7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries.
+7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries. It must not reverse: there is no rear range sensor.
 8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
 9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
@@ -77,7 +80,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid or stale ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. An I²C timeout or rejected IMU calibration prevents arming the balance loop. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
