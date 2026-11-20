@@ -40,6 +40,7 @@ private:
   bool autonomous_;
   bool discardNextSonar_;
   uint32_t stateSinceMs_;
+  uint32_t holdSinceMs_;
   uint32_t lastSonarStartMs_;
   uint16_t leftDistanceMm_;
   uint16_t rightDistanceMm_;
