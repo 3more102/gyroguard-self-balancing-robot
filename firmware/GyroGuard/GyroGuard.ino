@@ -2,6 +2,7 @@
 #include <avr/wdt.h>
 #include "config.h"
 #include "watchdog_startup.h"
+#include "arm_guard.h"
 #include "pid.h"
 #include "imu_mpu6050.h"
 #include "encoder.h"
@@ -28,6 +29,8 @@ float pitchRateDps = 0.0f;
 float measuredSpeedMmS = 0.0f;
 float targetAngleDeg = 0.0f;
 bool faultLatched = false;
+bool balanceArmed = false;
+bool pitchValid = false;
 bool telemetryEnabled = true;
 
 uint32_t lastControlUs = 0;
@@ -42,6 +45,8 @@ void latchFault(const __FlashStringHelper *reason) {
     Serial.println(reason);
   }
   faultLatched = true;
+  balanceArmed = false;
+  navigation.setAutonomous(false);
   motors.disable();
 }
 
@@ -65,20 +70,53 @@ bool updateVelocity(uint32_t nowUs) {
 void readSerialCommands() {
   while (Serial.available() > 0) {
     const char command = static_cast<char>(Serial.read());
-    if (command == 'a' || command == 'A') {
-      if (!faultLatched) {
+    if (command == 'b' || command == 'B') {
+      if (!canArmBalance(faultLatched, pitchValid, pitchDeg,
+                         ARM_TILT_LIMIT_DEG)) {
+        if (faultLatched) {
+          Serial.println(F("Cannot arm: a fault is latched. Power-cycle after inspection."));
+        } else if (!pitchValid) {
+          Serial.println(F("Cannot arm: waiting for the first valid IMU sample."));
+        } else {
+          Serial.println(F("Cannot arm: hold the robot within 8 degrees of upright."));
+        }
+      } else if (!balanceArmed) {
+        navigation.setAutonomous(false);
+        balancePid.reset();
+        velocityPid.reset();
+        targetAngleDeg = 0.0f;
+        measuredSpeedMmS = 0.0f;
+        previousCounts = encoders.snapshot();
+        lastVelocityUs = micros();
+        balanceArmed = true;
+        Serial.println(F("Balance armed. Keep clear of the wheels."));
+      } else {
+        Serial.println(F("Balance is already armed."));
+      }
+    } else if (command == 'd' || command == 'D') {
+      navigation.setAutonomous(false);
+      balanceArmed = false;
+      balancePid.reset();
+      velocityPid.reset();
+      targetAngleDeg = 0.0f;
+      motors.disable();
+      Serial.println(F("Balance disarmed; robot will fall unless physically supported."));
+    } else if (command == 'a' || command == 'A') {
+      if (!faultLatched && balanceArmed) {
         navigation.setAutonomous(true);
         velocityPid.reset();
         Serial.println(F("Autonomous mode enabled."));
+      } else if (!balanceArmed) {
+        Serial.println(F("Arm balance first with 'b'."));
       }
     } else if (command == 's' || command == 'S') {
       navigation.setAutonomous(false);
       velocityPid.reset();
-      Serial.println(F("Autonomous mode disabled; balancing remains active."));
+      Serial.println(F("Travel stopped; balance remains active if armed."));
     } else if (command == 't' || command == 'T') {
       telemetryEnabled = !telemetryEnabled;
     } else if (command == '?') {
-      Serial.println(F("Commands: a=autonomous, s=stop travel, t=telemetry, ?=help"));
+      Serial.println(F("Commands: b=arm balance, d=disarm, a=autonomous, s=stop travel, t=telemetry, ?=help"));
     }
   }
 }
@@ -96,6 +134,7 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   Serial.print(F(",rangeMm="));
   if (navigation.frontDistanceValid()) Serial.print(navigation.frontDistanceMm());
   else Serial.print(-1);
+  Serial.print(F(",armed=")); Serial.print(balanceArmed ? 1 : 0);
   Serial.print(F(",auto=")); Serial.print(navigation.autonomous() ? 1 : 0);
   Serial.print(F(",fault=")); Serial.println(faultLatched ? 1 : 0);
 }
@@ -133,8 +172,9 @@ void setup() {
   Serial.println(imuZeroAngleDeg, 3);
   Serial.print(F("Gyro Y bias dps: "));
   Serial.println(gyroBiasDps, 4);
-  Serial.println(F("Balance loop armed. Keep a hand near the power switch."));
-  Serial.println(F("Autonomous mode is disabled. Send 'a' only after balance tuning."));
+  Serial.println(F("IMU calibrated. Motor outputs remain disabled."));
+  Serial.println(F("Wait for valid pitch telemetry, hold within 8 degrees of upright, then send 'b'."));
+  Serial.println(F("Send 'a' only after balance-only operation is stable."));
 
   wdt_enable(WDTO_250MS);
 }
@@ -153,7 +193,7 @@ void loop() {
 
   const uint32_t elapsedUs = nowUs - lastControlUs;
   lastControlUs = nowUs;
-  if (elapsedUs > MAX_CONTROL_GAP_US) {
+  if (balanceArmed && elapsedUs > MAX_CONTROL_GAP_US) {
     latchFault(F("Control-loop timing overrun"));
     return;
   }
@@ -163,14 +203,24 @@ void loop() {
     latchFault(F("MPU6050 read failed"));
     return;
   }
+  pitchValid = true;
 
-  if (fabsf(pitchDeg) > MAX_SAFE_TILT_DEG) {
+  if (balanceArmed && fabsf(pitchDeg) > MAX_SAFE_TILT_DEG) {
     latchFault(F("Robot exceeded safe tilt angle; power-cycle after inspection"));
     return;
   }
 
   const NavigationCommand nav = navigation.update(millis(), nowUs);
-  if (updateVelocity(nowUs)) {
+  const bool velocityUpdated = updateVelocity(nowUs);
+
+  if (!balanceArmed) {
+    targetAngleDeg = 0.0f;
+    motors.disable();
+    printTelemetry(millis(), 0.0f);
+    return;
+  }
+
+  if (velocityUpdated) {
     float targetSpeed = nav.targetSpeedMmS;
     if (targetSpeed > MAX_TARGET_SPEED_MM_S) targetSpeed = MAX_TARGET_SPEED_MM_S;
     if (targetSpeed < -MAX_TARGET_SPEED_MM_S) targetSpeed = -MAX_TARGET_SPEED_MM_S;

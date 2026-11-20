@@ -35,10 +35,11 @@ Do not infer polarity from wire colors; motor and encoder wiring varies.
 
 ## Stage 4 — Balance-only test
 
-1. Keep autonomous mode disabled (default).
+1. Keep autonomous mode disabled (default); motor outputs remain disabled after calibration.
 2. Use a soft, clear test area with a safety tether or helper ready to catch the robot.
-3. Start with wheels raised to verify motor effort reacts against a small tilt. Positive forward tilt should cause positive forward wheel effort.
-4. Put the wheels on the ground while holding the frame upright. Keep a hand near the power switch.
+3. With wheels raised, use a temporary low-PWM motor test sketch to verify motor and encoder polarity.
+4. Put the wheels on the ground while holding the frame within 8 degrees of upright. Wait for valid pitch telemetry, then send 'b' to arm balance.
+5. Keep a hand near the physical power switch and release the frame only into the tethered test area.
 5. If it accelerates in the direction of the fall, immediately cut power. Reverse the balance sign / motor polarity only after verifying IMU sign and wheel direction.
 6. Tune the inner balance loop first:
    - Increase BALANCE_KP gradually until it responds strongly but begins to oscillate.
@@ -58,7 +59,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot will not drive autonomously until it has a fresh, valid forward-range measurement.
+5. Send 'a' only after balance-only operation is stable and balance is armed. The robot will not drive autonomously until it has a fresh, valid forward-range measurement.
 6. Confirm that an invalid or stale forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries; it does not reverse without rear sensing.
 8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
@@ -68,7 +69,9 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 
 | Command | Action |
 |---|---|
-| a | Enable autonomous cruise and obstacle avoidance |
+| b | Arm balance after a valid IMU sample and within 8 degrees of upright |
+| d | Disarm motor outputs; robot will fall unless physically supported |
+| a | Enable autonomous cruise and obstacle avoidance (only while balance is armed) |
 | s | Disable travel; keep balance loop active |
 | t | Toggle telemetry |
 | ? | Print command help |
@@ -81,7 +84,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen. After any normal boot or watchdog reset, balance remains disarmed until 'b' is deliberately sent. The 'd' command removes motor torque; use it only while the robot is physically supported. Use the battery switch for an emergency power cut.
 
 ## Tuning record
 
