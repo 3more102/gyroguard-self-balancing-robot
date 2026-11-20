@@ -7,10 +7,10 @@ void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
   servo_.write(SERVO_CENTER_DEG);
   sonar_.begin();
-  state_ = DRIVE;
   autonomous_ = AUTO_DRIVE_ON_BOOT;
+  state_ = SENSOR_HOLD;
   stateSinceMs_ = millis();
-  lastSonarStartMs_ = 0;
+  lastSonarStartMs_ = stateSinceMs_;
   frontDistanceAtMs_ = 0;
   leftDistanceMm_ = 0;
   rightDistanceMm_ = 0;
@@ -25,23 +25,18 @@ void ObstacleAvoidance::begin() {
 void ObstacleAvoidance::setAutonomous(bool enabled) {
   if (enabled == autonomous_) return;
 
-  if (!enabled) {
-    // Discard any in-flight echo when travel is disabled. In particular,
-    // a side-scan echo must not be mistaken for a forward reading after the
-    // servo returns to center or autonomy is re-armed.
-    ignoreNextSonarResult_ = sonar_.busy() ||
-        state_ == SCAN_LEFT_MEASURE ||
-        state_ == SCAN_RIGHT_MEASURE ||
-        state_ == SENSOR_HOLD_MEASURE;
-    autonomous_ = false;
-    state_ = DRIVE;
-    servo_.write(SERVO_CENTER_DEG);
-  } else {
-    autonomous_ = true;
-    state_ = DRIVE;
-    servo_.write(SERVO_CENTER_DEG);
-    lastSonarStartMs_ = 0;
-  }
+  // Discard any in-flight echo across a mode change. It may have been
+  // captured while the scanner was facing a side or returning to center.
+  ignoreNextSonarResult_ = ignoreNextSonarResult_ || sonar_.busy() ||
+      state_ == SCAN_LEFT_MEASURE ||
+      state_ == SCAN_RIGHT_MEASURE ||
+      state_ == SENSOR_HOLD_MEASURE;
+
+  autonomous_ = enabled;
+  state_ = SENSOR_HOLD;
+  servo_.write(SERVO_CENTER_DEG);
+  stateSinceMs_ = millis();
+  lastSonarStartMs_ = stateSinceMs_;
 
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
@@ -95,6 +90,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   if (state_ == DRIVE) {
     frontDistanceValid_ = valid;
     frontDistanceMm_ = valid ? distance : 0;
+    // stateSinceMs_ is the trigger time set by startSonar(), not echo time.
     frontDistanceAtMs_ = valid ? stateSinceMs_ : 0;
 
     if (autonomous_) {
@@ -138,10 +134,15 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
     frontDistanceMm_ = valid ? distance : 0;
     frontDistanceAtMs_ = valid ? stateSinceMs_ : 0;
 
-    if (!valid) {
+    if (!autonomous_) {
+      // Balance-only ranging is diagnostic: update telemetry but never move.
+      state_ = DRIVE;
+      stateSinceMs_ = nowMs;
+    } else if (!valid) {
       state_ = SENSOR_HOLD;
       stateSinceMs_ = nowMs;
-    } else if (distance < OBSTACLE_STOP_MM) {
+    } else if (distance < OBSTACLE_CLEAR_MM) {
+      // The forward path is not yet proven clear; re-check the sides.
       startScan(nowMs);
     } else {
       state_ = DRIVE;
@@ -154,7 +155,18 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
   sonar_.update(nowUs);
   consumeSonar(nowMs);
 
-  if (!autonomous_) return {0.0f, 0.0f};
+  if (!autonomous_) {
+    if (!sonar_.busy() &&
+        static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
+      if (state_ == SENSOR_HOLD &&
+          static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS) {
+        startSonar(nowUs, nowMs, SENSOR_HOLD_MEASURE);
+      } else if (state_ == DRIVE) {
+        startSonar(nowUs, nowMs, DRIVE);
+      }
+    }
+    return {0.0f, 0.0f};
+  }
 
   switch (state_) {
     case DRIVE: {
@@ -188,13 +200,13 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
 
     case TURNING:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= TURN_DURATION_MS) {
-        state_ = DRIVE;
+        // Re-enter the center-sensor hold path before any forward motion.
+        state_ = SENSOR_HOLD;
         stateSinceMs_ = nowMs;
         lastSonarStartMs_ = nowMs;
         frontDistanceMm_ = 0;
         frontDistanceValid_ = false;
         frontDistanceAtMs_ = 0;
-        // Wait for a fresh center reading before driving forward again.
         return {0.0f, 0.0f};
       }
       // Positive bias speeds the left wheel relative to the right: turn right.
@@ -202,6 +214,7 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
 
     case SENSOR_HOLD:
       if (!sonar_.busy() &&
+          static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS &&
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
         startSonar(nowUs, nowMs, SENSOR_HOLD_MEASURE);
       }

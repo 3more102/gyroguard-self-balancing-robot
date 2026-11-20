@@ -58,8 +58,8 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 1. Keep the robot supported and autonomous mode disabled.
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
-4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send 'a' only after balance-only operation is stable and balance is armed. The robot will not drive autonomously until it has a fresh, valid forward-range measurement.
+4. With autonomous mode still disabled, verify the rangeMm field in Serial Monitor updates with plausible distances after the center servo has settled; -1 means no valid echo was received. This is sensor telemetry only and must not command translation.
+5. Send 'a' only after balance-only operation is stable and balance is armed. The robot waits for the center servo to settle and a fresh forward reading at or beyond OBSTACLE_CLEAR_MM before it can drive autonomously.
 6. Confirm that an invalid or stale forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries; it does not reverse without rear sensing.
 8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.

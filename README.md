@@ -69,6 +69,8 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_imu_validation.cpp
       test_navigation_state_machine.cpp
       test_balance_arming.cpp
+      fakes/Arduino.h / fakes/Servo.h
+      test_navigation_state_machine.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -101,6 +103,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-navigation-state-machine-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
     /tmp/gyroguard-arm-test
+    g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
+    /tmp/gyroguard-navigation-state-machine-test
 
 CI runs all host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
@@ -111,6 +115,8 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction causes a latched motor-off fault.
 - The robot calibrates the IMU while it is held upright and stationary.
 - After calibration, motor outputs remain disabled.
+- Front sonar measurements and range telemetry continue while autonomous travel is disabled; this diagnostic mode never commands translation.
+- The center servo settles before forward ranging after startup, mode changes and scans.
 - Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing.
 - Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.

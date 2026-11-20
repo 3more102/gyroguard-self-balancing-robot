@@ -35,6 +35,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
           /tmp/gyroguard-arm-test
+      - name: Test obstacle-avoidance state machine
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
+          /tmp/gyroguard-navigation-state-machine-test
 
   compile-avr-targets:
     runs-on: ubuntu-latest
