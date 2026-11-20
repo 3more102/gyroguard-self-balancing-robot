@@ -200,11 +200,11 @@ static void testStaleForwardRangeStopsCruise() {
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 
   command = updateAt(
-      navigation, SONAR_RETRY_MS + 1 + FRONT_RANGE_MAX_AGE_MS);
+      navigation, SONAR_RETRY_MS + FRONT_RANGE_MAX_AGE_MS);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 
   command = updateAt(
-      navigation, SONAR_RETRY_MS + 2 + FRONT_RANGE_MAX_AGE_MS);
+      navigation, SONAR_RETRY_MS + FRONT_RANGE_MAX_AGE_MS + 1);
   assert(near(command.targetSpeedMmS, 0.0f));
 }
 
