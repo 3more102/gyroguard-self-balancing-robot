@@ -47,10 +47,11 @@
 <path class="wire" d="M1120 680H1140V465H1170"/>
 <path class="wireBlue" d="M360 875H455"/>
 <path class="wireAmber" d="M790 875H825V735H865"/>
-<path class="wire" d="M985 620V570H620V520"/>
+<path class="wireBlue" d="M865 710H840V495H790"/>
 <path class="wire" d="M1305 300V390"/>
 <path class="wire" d="M1305 540V605"/>
-<path class="wireAmber" d="M1120 875H1450V465H1440"/>
+<path class="wireAmber" d="M1120 875H1170"/>
+<path class="wireAmber" d="M1305 820H1460V250H1440"/>
 <path class="wireAmber" d="M985 790V815"/>
 
 <!-- sensor nodes -->
