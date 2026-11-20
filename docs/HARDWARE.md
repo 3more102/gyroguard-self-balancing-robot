@@ -66,7 +66,7 @@ Install this divider only for the documented protected **2S pack**:
 
 The equal-resistor divider halves the pack voltage: 8.4 V becomes 4.2 V at A2. **Never connect battery positive directly to A2.** Do not use this divider with a 3S or higher-voltage pack. The firmware assumes a 5.0 V ADC reference by default; measure the regulated 5 V rail and adjust BATTERY_ADC_REFERENCE_MV in config.h to the measured value for better accuracy.
 
-The default software threshold inhibits autonomous travel at or below 6.8 V and clears the inhibit only at or above 7.0 V. It does not cut motor power or stop the balance loop. Keep a proper 2S BMS/protected pack: this monitor is not a substitute for cell-level protection.
+The default software threshold inhibits autonomous travel at or below 6.8 V and clears the low-voltage inhibit only at or above 7.0 V. Readings below 5.0 V or above 9.0 V are treated as invalid and also inhibit travel. It does not cut motor power or stop the balance loop. Keep a proper 2S BMS/protected pack: this monitor is not a substitute for cell-level protection.
 
 ## 5. TB6612FNG connections and current limits
 
