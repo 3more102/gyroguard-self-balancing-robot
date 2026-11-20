@@ -91,8 +91,8 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
         OBSTACLE_CLEAR_MM);
 
     servo_.write(SERVO_CENTER_DEG);
-    // If no direction has verified clearance, back away and then hold.
-    state_ = (turnDirection_ == 0) ? REVERSING : TURNING;
+    // No rear sensor is fitted, so never reverse into an unobserved path.
+    state_ = (turnDirection_ == 0) ? BLOCKED : TURNING;
     stateSinceMs_ = nowMs;
   }
 }
@@ -138,13 +138,6 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
       }
       // Positive bias speeds the left wheel relative to the right: right turn.
       return {0.0f, static_cast<float>(turnDirection_) * TURN_BIAS_PWM};
-
-    case REVERSING:
-      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= REVERSE_DURATION_MS) {
-        state_ = (turnDirection_ == 0) ? BLOCKED : TURNING;
-        stateSinceMs_ = nowMs;
-      }
-      return {REVERSE_SPEED_MM_S, 0.0f};
 
     case BLOCKED:
       return {0.0f, 0.0f};

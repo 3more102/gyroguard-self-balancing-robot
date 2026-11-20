@@ -27,7 +27,6 @@ private:
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
     TURNING,
-    REVERSING,
     BLOCKED
   };
 

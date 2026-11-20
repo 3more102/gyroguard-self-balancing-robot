@@ -56,8 +56,8 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
 5. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn only toward a side with a valid reading at or above the configured clearance threshold.
-6. An invalid side reading is unknown, not proof of open space. If neither side is confirmed clear, the robot reverses briefly and enters blocked hold while keeping balance active.
-7. To leave blocked hold, inspect the area and reposition the robot safely before deliberately re-arming autonomous travel. Use the physical power switch before moving the chassis by hand.
+6. An invalid side reading is unknown, not proof of open space. If neither side is confirmed clear, the robot enters blocked hold while keeping balance active.
+7. The robot does not reverse automatically because it has no rear-facing sensor to verify that path. Inspect the area and reposition the robot safely before deliberately re-arming autonomous travel. Use the physical power switch before moving the chassis by hand.
 8. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
 9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 

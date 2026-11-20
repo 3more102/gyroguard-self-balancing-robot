@@ -9,7 +9,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
-- Conservative no-path behavior: reverse briefly, then hold while balance remains active
+- No-path behavior: stop travel and hold balance; no blind reverse without a rear sensor
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
@@ -81,7 +81,7 @@ Arduino CLI example:
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
-- If neither scan direction has confirmed clearance, the robot reverses briefly and enters a blocked hold. Inspect/reposition the robot before deliberately re-arming autonomous travel.
+- If neither scan direction has confirmed clearance, the robot enters a blocked hold while balance remains active. It does not reverse because no rear sensor verifies that path. Inspect/reposition the robot safely before deliberately re-arming autonomous travel.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
@@ -90,7 +90,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Invalid side readings are treated as unknown, not as maximum clearance; if neither side meets the configured clearance threshold, the robot backs up briefly and then holds.
+3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Invalid side readings are treated as unknown, not as maximum clearance; if neither side meets the configured clearance threshold, the robot enters blocked hold without reversing into an unobserved path.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, autonomous state and blocked-navigation state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
@@ -100,6 +100,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - A single forward scanner does not provide full 360-degree perception.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
+- No rear-facing sensor is fitted, so automatic reverse is disabled; a no-clearance result holds position until operator intervention.
 - Use a physical power switch and accessible battery disconnect.
 
 ## License
