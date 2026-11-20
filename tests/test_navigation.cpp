@@ -96,9 +96,18 @@ static void testObstacleScanAndTurnTowardClearerSide() {
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(command.turnBiasPwm < 0.0f); // More clearance on the left.
 
-  command = updateAt(
-      navigation,
-      SONAR_RETRY_MS + 3 + 2 * SERVO_SETTLE_MS + TURN_DURATION_MS);
+  const uint32_t turnFinishedMs =
+      SONAR_RETRY_MS + 3 + 2 * SERVO_SETTLE_MS + TURN_DURATION_MS;
+  command = updateAt(navigation, turnFinishedMs);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(near(command.turnBiasPwm, 0.0f));
+
+  // A turn does not authorize immediate forward motion. A fresh center
+  // measurement must first confirm that the path is clear.
+  command = updateAt(navigation, turnFinishedMs + SONAR_RETRY_MS);
+  assert(sonarBusy);
+  injectRange(700);
+  command = updateAt(navigation, turnFinishedMs + SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
   assert(near(command.turnBiasPwm, 0.0f));
 }
