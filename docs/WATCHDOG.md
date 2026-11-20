@@ -19,7 +19,7 @@ The `.init3` hook runs after the bootloader has transferred control to the sketc
 3. Clears `MCUSR`.
 4. Calls AVR-libc `wdt_disable()` using the required timed register sequence.
 
-The sketch reports a previous watchdog reset over Serial. The normal application can then enable its runtime watchdog after initialization. The existing loop must continue calling `wdt_reset()` within the configured timeout.
+The sketch reports a previous watchdog reset over Serial. The normal application can then enable its runtime watchdog after initialization. The balance controller starts disarmed after every reset and requires a deliberate 'b' command before motor control can resume. The existing loop must continue calling `wdt_reset()` within the configured timeout.
 
 The `wdt_disable()` call in `setup()` is retained as a defensive, harmless second disable; it is not the primary recovery mechanism.
 

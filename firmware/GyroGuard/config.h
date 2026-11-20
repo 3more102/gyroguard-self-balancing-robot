@@ -46,9 +46,22 @@ constexpr uint32_t MAX_CONTROL_GAP_US = 20000UL;
 
 // MPU-6050
 constexpr uint8_t MPU6050_ADDRESS = 0x68; // AD0 low; use 0x69 if AD0 high
+constexpr uint32_t IMU_I2C_TIMEOUT_US = 5000UL;
 constexpr uint16_t IMU_CALIBRATION_SAMPLES = 500;
 constexpr float COMPLEMENTARY_ALPHA = 0.98f;
 constexpr float MAX_SAFE_TILT_DEG = 32.0f;
+constexpr float ARM_TILT_LIMIT_DEG = 8.0f;
+constexpr float ARM_RATE_LIMIT_DPS = 10.0f;
+
+// Startup calibration acceptance limits. These are conservative firmware
+// thresholds, not MPU-6050 datasheet accuracy specifications.
+constexpr float IMU_CAL_MAX_ACCEL_ANGLE_STD_DEG = 2.5f;
+constexpr float IMU_CAL_MAX_ABS_ANGLE_DEG = 15.0f;
+constexpr float IMU_CAL_MAX_GYRO_RATE_STD_DPS = 3.0f;
+constexpr float IMU_CAL_MAX_GYRO_MAGNITUDE_DPS = 5.0f;
+constexpr float IMU_CAL_MIN_GRAVITY_G = 0.75f;
+constexpr float IMU_CAL_MAX_GRAVITY_G = 1.25f;
+constexpr float IMU_CAL_MAX_GRAVITY_STD_G = 0.08f;
 
 // Controller gains are initial tuning values, not guaranteed stable.
 constexpr float BALANCE_KP = 18.0f;       // PWM / degree

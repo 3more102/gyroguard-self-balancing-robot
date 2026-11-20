@@ -5,13 +5,16 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 ## Included
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
+- MPU-6050 identity check, stationary-window startup calibration validation and bounded I²C transactions
+- PID input guards reject NaN/infinite sensor or timing values and reset controller state safely
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown, invalid or stale sensor data never authorizes forward motion or an unverified turn
 - TB6612FNG dual H-bridge driver
-- Tilt, sensor, timing and startup safety handling
+- Explicit balance arming with live-IMU, upright-angle and low-pitch-rate interlocks
+- Watchdog reset recovery and tilt, sensor, timing safety handling
 - Serial commands and commissioning documentation
 
 > **Safety:** This is an engineering project, not a ready-to-drive appliance. Initial gains and mechanical parameters are starting points only. A self-balancing robot can move unexpectedly and fall. Commission it with the wheels raised, then use a tether or soft catch area. Keep hands, cables and loose clothing away from wheels.
@@ -41,10 +44,14 @@ Choose motors whose stall current is within the driver and battery limits. The T
     firmware/GyroGuard/
       GyroGuard.ino
       config.h
+      arm_guard.h
       pid.h / pid.cpp
+      watchdog_startup.cpp / watchdog_startup.h
       range_guard.h
       imu_mpu6050.h / imu_mpu6050.cpp
+      imu_validation.h
       encoder.h / encoder.cpp
+      encoder_math.h
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       navigation_policy.h
@@ -53,13 +60,14 @@ Choose motors whose stall current is within the driver and battery limits. The T
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+      WATCHDOG.md
     tests/
-      fakes/
-        Arduino.h
-        Servo.h
       test_pid.cpp
       test_navigation_policy.cpp
       test_range_guard.cpp
+      test_imu_validation.cpp
+      test_balance_arming.cpp
+      fakes/Arduino.h / Servo.h
       test_navigation_state_machine.cpp
     .github/workflows/arduino-ci.yml
 
@@ -87,6 +95,10 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-navigation-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
     /tmp/gyroguard-range-guard-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
+    /tmp/gyroguard-imu-validation-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
+    /tmp/gyroguard-arm-test
     g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
     /tmp/gyroguard-navigation-state-machine-test
 
@@ -94,16 +106,18 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 
 ## First-use behavior
 
-- Autonomous movement is **disabled on boot**.
+- Motor control and autonomous movement are **disabled on boot**.
+- The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
+- MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction causes a latched motor-off fault.
 - The robot calibrates the IMU while it is held upright and stationary.
-- Once calibration succeeds, the balance loop is enabled.
-- Front sonar measurements and range telemetry continue while autonomous travel is disabled; this diagnostic mode never commands translation.
-- The center servo settles before forward ranging after startup, mode changes and scans.
-- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
+- After calibration, motor outputs remain disabled.
+- Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing.
+- Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - The center servo is allowed to settle after a scan or re-arm; a fresh forward measurement at or beyond OBSTACLE_CLEAR_MM is required before cruise resumes.
 - If neither side has verified clearance, the robot holds position and retries sensing; it does not reverse without rear sensing.
-- Send 's' to request zero forward speed while keeping balance active.
+- Send 's' to stop autonomous travel while keeping balance active.
+- Send 'd' to disarm motor outputs; the robot will fall unless physically supported.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
@@ -115,7 +129,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown, invalid or stale range readings inhibit translation instead of being interpreted as clear space. No reverse is commanded without rear sensing.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range and balance-armed state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
