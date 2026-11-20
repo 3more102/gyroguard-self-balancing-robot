@@ -1,4 +1,5 @@
 #include "imu_mpu6050.h"
+#include "imu_calibration.h"
 #include "config.h"
 #include <Wire.h>
 #include <math.h>
@@ -69,21 +70,17 @@ bool MPU6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gx,
 bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
                         float &gyroBiasDps) {
   if (!initialized_ || samples < 100) return false;
-  float angleSum = 0.0f;
-  float gyroSum = 0.0f;
 
+  ImuCalibrationAccumulator calibration;
   for (uint16_t i = 0; i < samples; ++i) {
     int16_t ax, ay, az, gx, gy, gz;
     if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
-    const float accelAngle = atan2f(-static_cast<float>(ax),
-                                    static_cast<float>(az)) * RAD_TO_DEG_F;
-    angleSum += accelAngle;
-    gyroSum += static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    calibration.add(ax, ay, az, gx, gy, gz);
     delay(5);
   }
 
-  zeroAngleDeg = angleSum / static_cast<float>(samples);
-  gyroBiasDps = gyroSum / static_cast<float>(samples);
+  if (!calibration.finish(samples, zeroAngleDeg, gyroBiasDps)) return false;
+
   filteredPitchDeg_ = 0.0f;
   filterInitialized_ = true;
   return true;
