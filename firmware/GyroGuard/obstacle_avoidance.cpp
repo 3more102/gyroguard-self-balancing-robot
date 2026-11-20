@@ -192,6 +192,7 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= REVERSE_DURATION_MS) {
         state_ = TURNING;
         stateSinceMs_ = nowMs;
+        return {0.0f, turnDirection_ * TURN_BIAS_PWM};
       }
       return {REVERSE_SPEED_MM_S, 0.0f};
 
