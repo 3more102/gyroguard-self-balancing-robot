@@ -83,6 +83,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_servo_center_settle.cpp
       test_balance_arming.cpp
       test_battery_policy.cpp
+      test_battery_monitor.cpp
       test_motion_guard.cpp
     .github/workflows/arduino-ci.yml
 
@@ -120,6 +121,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-arm-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
     /tmp/gyroguard-battery-policy-test
+    g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test
+    /tmp/gyroguard-battery-monitor-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
     /tmp/gyroguard-motion-guard-test
 
