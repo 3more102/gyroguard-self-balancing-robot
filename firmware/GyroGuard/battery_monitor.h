@@ -1,0 +1,18 @@
+#pragma once
+
+#include <Arduino.h>
+
+class BatteryMonitor {
+public:
+  void begin();
+  bool update(uint32_t nowMs);
+  bool ready() const;
+  bool lowBattery() const;
+  uint16_t millivolts() const;
+
+private:
+  uint32_t lastSampleMs_;
+  uint16_t filteredMillivolts_;
+  bool initialized_;
+  bool lowBattery_;
+};
