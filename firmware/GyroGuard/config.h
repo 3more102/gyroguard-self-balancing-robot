@@ -50,6 +50,8 @@ constexpr uint32_t IMU_I2C_TIMEOUT_US = 5000UL;
 constexpr uint16_t IMU_CALIBRATION_SAMPLES = 500;
 constexpr float COMPLEMENTARY_ALPHA = 0.98f;
 constexpr float MAX_SAFE_TILT_DEG = 32.0f;
+constexpr float ARM_TILT_LIMIT_DEG = 8.0f;
+constexpr float ARM_RATE_LIMIT_DPS = 10.0f;
 
 // Startup calibration acceptance limits. These are conservative firmware
 // thresholds, not MPU-6050 datasheet accuracy specifications.
