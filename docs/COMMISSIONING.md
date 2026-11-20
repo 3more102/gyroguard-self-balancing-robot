@@ -84,7 +84,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen. After any normal boot or watchdog reset, balance remains disarmed until 'b' is deliberately sent. The 'd' command removes motor torque; use it only while the robot is physically supported. Use the battery switch for an emergency power cut.
+The PID controller resets its integral and derivative history and returns zero if an input, time step, or intermediate arithmetic result is non-finite. An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen. After any normal boot or watchdog reset, balance remains disarmed until 'b' is deliberately sent. The 'd' command removes motor torque; use it only while the robot is physically supported. Use the battery switch for an emergency power cut.
 
 ## Tuning record
 
