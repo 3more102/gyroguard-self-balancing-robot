@@ -60,7 +60,8 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries.
 8. If both measured sides are below OBSTACLE_CLEAR_MM, the robot holds position; it does not reverse because no rear-facing sensor is installed.
 9. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
-10. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+10. Watch navBlocked in telemetry: 1 means navigation is holding because it lacks a verified clear path.
+11. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
