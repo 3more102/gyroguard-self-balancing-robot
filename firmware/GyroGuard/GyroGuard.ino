@@ -31,6 +31,7 @@ float targetAngleDeg = 0.0f;
 bool faultLatched = false;
 bool balanceArmed = false;
 bool pitchValid = false;
+uint32_t lastPitchSampleUs = 0;
 bool telemetryEnabled = true;
 
 uint32_t lastControlUs = 0;
@@ -82,12 +83,18 @@ void readSerialCommands() {
   while (Serial.available() > 0) {
     const char command = static_cast<char>(Serial.read());
     if (command == 'b' || command == 'B') {
+      const uint32_t commandNowUs = micros();
       if (!canArmBalance(faultLatched, pitchValid, pitchDeg, pitchRateDps,
-                         ARM_TILT_LIMIT_DEG, ARM_RATE_LIMIT_DPS)) {
+                         ARM_TILT_LIMIT_DEG, ARM_RATE_LIMIT_DPS,
+                         lastPitchSampleUs, commandNowUs,
+                         MAX_ARM_SAMPLE_AGE_US)) {
         if (faultLatched) {
           printCommandResponse(F("ARM BLOCKED: fault"), 20);
         } else if (!pitchValid) {
           printCommandResponse(F("ARM BLOCKED: no IMU sample"), 30);
+        } else if (!isPitchSampleFresh(lastPitchSampleUs, commandNowUs,
+                                       MAX_ARM_SAMPLE_AGE_US)) {
+          printCommandResponse(F("ARM BLOCKED: stale IMU sample"), 32);
         } else if (fabsf(pitchDeg) > ARM_TILT_LIMIT_DEG) {
           printCommandResponse(F("ARM BLOCKED: hold upright"), 28);
         } else {
@@ -235,6 +242,7 @@ void loop() {
     latchFault(F("Non-finite IMU estimate"));
     return;
   }
+  lastPitchSampleUs = micros();
 
   if (balanceArmed && fabsf(pitchDeg) > MAX_SAFE_TILT_DEG) {
     latchFault(F("Robot exceeded safe tilt angle; power-cycle after inspection"));
