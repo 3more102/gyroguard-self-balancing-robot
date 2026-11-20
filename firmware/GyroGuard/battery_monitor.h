@@ -8,6 +8,8 @@ public:
   bool update(uint32_t nowMs);
   bool ready() const;
   bool lowBattery() const;
+  bool voltageValid() const;
+  bool travelInhibited() const;
   uint16_t millivolts() const;
 
 private:
