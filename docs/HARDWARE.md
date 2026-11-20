@@ -91,7 +91,7 @@ If forward wheel rotation gives negative speed, change the corresponding LEFT_EN
 
 Mount the HC-SR04 at the front, with a clear view and no frame parts in its beam. Attach it to the SG90 bracket. Verify the servo's physical left/right directions. If they are reversed, swap SERVO_LEFT_DEG and SERVO_RIGHT_DEG in config.h.
 
-The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn().
+The sensor is scanned at center during travel, then left and right after an obstacle is detected. Echo capture is interrupt-driven; the balance loop is not blocked by pulseIn(). A captured echo shorter than the configured 30 mm minimum is conservatively reported as a 0 mm obstruction so the avoidance logic stops instead of treating a near-field object as a clear path. A missing echo or a return beyond the configured maximum range is reported as invalid.
 
 ## 8. Before applying power
 

@@ -59,6 +59,8 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 6. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
 7. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
+An echo captured inside the configured 30 mm near-field limit is deliberately surfaced as 0 mm and treated as an obstruction. Do not use the HC-SR04 as a precision sensor inside its specified minimum range.
+
 ## Serial commands
 
 | Command | Action |
