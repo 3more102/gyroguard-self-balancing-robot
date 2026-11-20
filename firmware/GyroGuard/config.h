@@ -53,7 +53,9 @@ constexpr float MAX_SAFE_TILT_DEG = 32.0f;
 // Startup calibration acceptance limits. These are conservative firmware
 // thresholds, not MPU-6050 datasheet accuracy specifications.
 constexpr float IMU_CAL_MAX_ACCEL_ANGLE_STD_DEG = 2.5f;
+constexpr float IMU_CAL_MAX_ABS_ANGLE_DEG = 15.0f;
 constexpr float IMU_CAL_MAX_GYRO_RATE_STD_DPS = 3.0f;
+constexpr float IMU_CAL_MAX_GYRO_MAGNITUDE_DPS = 5.0f;
 constexpr float IMU_CAL_MIN_GRAVITY_G = 0.75f;
 constexpr float IMU_CAL_MAX_GRAVITY_G = 1.25f;
 constexpr float IMU_CAL_MAX_GRAVITY_STD_G = 0.08f;
