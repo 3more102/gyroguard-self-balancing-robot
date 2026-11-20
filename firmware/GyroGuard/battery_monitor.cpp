@@ -8,7 +8,7 @@ void BatteryMonitor::begin() {
   filteredMillivolts_ = 0;
   initialized_ = false;
   sampleValid_ = false;
-  lowBattery_ = false;
+  travelInhibited_ = true; // Startup is inhibited until a valid recovery reading.
 }
 
 bool BatteryMonitor::update(uint32_t nowMs) {
@@ -35,10 +35,13 @@ bool BatteryMonitor::update(uint32_t nowMs) {
     filteredMillivolts_ = static_cast<uint16_t>(weighted / divisor);
   }
 
-  // Use the raw sample for the low-voltage latch so filtering cannot delay
-  // a safety inhibit by several 100 ms sampling periods.
-  lowBattery_ = batteryTravelInhibited(
-      lowBattery_, sampleMv,
+  // Trip on the raw sample immediately; require both raw and filtered values
+  // to recover before clearing the travel inhibit.
+  const bool filteredValid = batteryVoltagePlausible(
+      filteredMillivolts_, BATTERY_MIN_VALID_MV, BATTERY_MAX_VALID_MV);
+  const bool readingValid = sampleValid_ && filteredValid;
+  travelInhibited_ = batteryTravelInhibited(
+      travelInhibited_, sampleMv, filteredMillivolts_, readingValid,
       LOW_BATTERY_INHIBIT_MV, LOW_BATTERY_RECOVERY_MV);
   lastSampleMs_ = nowMs;
   initialized_ = true;
@@ -50,7 +53,7 @@ bool BatteryMonitor::ready() const {
 }
 
 bool BatteryMonitor::lowBattery() const {
-  return initialized_ && lowBattery_;
+  return initialized_ && voltageValid() && travelInhibited_;
 }
 
 bool BatteryMonitor::voltageValid() const {
@@ -59,7 +62,7 @@ bool BatteryMonitor::voltageValid() const {
 }
 
 bool BatteryMonitor::travelInhibited() const {
-  return !voltageValid() || lowBattery_;
+  return !voltageValid() || travelInhibited_;
 }
 
 uint16_t BatteryMonitor::millivolts() const {
