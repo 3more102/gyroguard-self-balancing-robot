@@ -9,14 +9,25 @@
 #include "obstacle_avoidance.h"
 #include <math.h>
 
-// The AVR watchdog can remain enabled after a watchdog reset. Capture MCUSR
-// and disable it in .init3, before the Arduino runtime and global constructors.
-uint8_t gyroGuardResetCause __attribute__((section(".noinit")));
-void gyroGuardCaptureResetCauseAndDisableWatchdog(void)
+// Optiboot clears MCUSR but passes the original reset flags in r2.
+// Legacy bootloaders may leave the flags in MCUSR instead.
+uint8_t gyroGuardBootloaderResetCause __attribute__((section(".noinit")));
+uint8_t gyroGuardMcusrResetCause __attribute__((section(".noinit")));
+
+void gyroGuardCaptureBootloaderResetCause(void)
+    __attribute__((used, naked, section(".init0")));
+
+void gyroGuardCaptureBootloaderResetCause(void) {
+  __asm__ __volatile__("sts %0, r2\n" : "=m" (gyroGuardBootloaderResetCause));
+}
+
+// Disable the AVR watchdog before normal Arduino initialization. This also
+// prevents a watchdog-reset loop on bootloaders that leave WDT running.
+void gyroGuardCaptureMcusrAndDisableWatchdog(void)
     __attribute__((used, unused, naked, section(".init3")));
 
-void gyroGuardCaptureResetCauseAndDisableWatchdog(void) {
-  gyroGuardResetCause = MCUSR;
+void gyroGuardCaptureMcusrAndDisableWatchdog(void) {
+  gyroGuardMcusrResetCause = MCUSR;
   MCUSR = 0;
   wdt_disable();
 }
@@ -119,21 +130,36 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
 }
 
 void setup() {
+  // Prefer MCUSR when a legacy bootloader preserves it. Optiboot normally
+  // clears MCUSR, so use its saved r2 flags only for safety-relevant reset bits.
+  uint8_t resetCause = gyroGuardMcusrResetCause;
+  if (resetCause == 0) {
+    const uint8_t bootloaderSafetyFlags =
+        gyroGuardBootloaderResetCause & (_BV(WDRF) | _BV(BORF));
+    if (bootloaderSafetyFlags != 0) {
+      resetCause = gyroGuardBootloaderResetCause;
+    }
+  }
+
   // Put the motor driver in standby before initializing other peripherals.
   motors.begin();
   Serial.begin(SERIAL_BAUD);
 
   Serial.println(F("\nGyroGuard boot"));
   Serial.print(F("Reset cause flags: 0x"));
-  Serial.println(gyroGuardResetCause, HEX);
+  Serial.println(resetCause, HEX);
 
-  // A watchdog or brown-out reset requires inspection. Do not automatically
-  // re-arm a robot that may have fallen or experienced an unstable power rail.
-  if ((gyroGuardResetCause & (_BV(WDRF) | _BV(BORF))) != 0) {
-    if ((gyroGuardResetCause & _BV(WDRF)) != 0) {
-      Serial.println(F("Previous reset: watchdog."));
+  // Optiboot can report WDRF+EXTRF after its own upload timeout. That is not
+  // an application watchdog failure. An application WDT reset has WDRF set
+  // without EXTRF. Any brown-out reset requires inspection.
+  const bool watchdogReset = (resetCause & _BV(WDRF)) != 0 &&
+                             (resetCause & _BV(EXTRF)) == 0;
+  const bool brownOutReset = (resetCause & _BV(BORF)) != 0;
+  if (watchdogReset || brownOutReset) {
+    if (watchdogReset) {
+      Serial.println(F("Previous reset: application watchdog."));
     }
-    if ((gyroGuardResetCause & _BV(BORF)) != 0) {
+    if (brownOutReset) {
       Serial.println(F("Previous reset: brown-out."));
     }
     latchFault(F("Reset requires inspection; power-cycle to re-arm."));
