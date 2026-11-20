@@ -118,7 +118,7 @@ The equal-resistor divider has a 2:1 ratio. A fully charged 2S pack at 8.4 V pro
 
 Before connecting A2 to the controller, measure the divider output with a multimeter at the pack's maximum voltage. Calibrate `BATTERY_ADC_REFERENCE_MV` in config.h against the actual 5 V rail if the displayed pack voltage is inaccurate. The default 5000 mV reference is an initial value, not a precision measurement.
 
-The firmware samples the pack every 100 ms, filters the result, inhibits autonomous travel at or below 6.8 V, and permits travel again only after the reading reaches 7.0 V. An invalid or missing divider reading also inhibits autonomous travel. The balance loop remains active; use the physical battery switch for an emergency stop. Do not deliberately deep-discharge the pack to test the threshold.
+The firmware samples the pack every 100 ms, filters the result, and inhibits autonomous travel at or below 6.8 V. Once inhibited, travel remains blocked until the reading reaches 7.0 V. An invalid or missing divider reading also inhibits autonomous travel. The balance loop remains active; use the physical battery switch for an emergency stop. Do not deliberately deep-discharge the pack to test the threshold.
 
 ## 9. Before applying power
 
