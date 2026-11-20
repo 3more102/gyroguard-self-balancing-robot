@@ -76,7 +76,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 ## Fault behavior
 
 The motor driver is disabled and the fault is latched if:
-- IMU initialization or a runtime read fails
+- MPU-6050 identity verification fails, an I²C transaction times out, or an IMU runtime read fails
 - startup calibration is unstable or the sensor identity check fails
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US

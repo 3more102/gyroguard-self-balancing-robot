@@ -1,4 +1,5 @@
 #include "pid.h"
+#include <math.h>
 
 PIDController::PIDController(float kp, float ki, float kd,
                              float outputMin, float outputMax)
@@ -15,7 +16,12 @@ void PIDController::reset() {
 float PIDController::update(float error, float dtSeconds,
                             float derivativeMeasurement,
                             bool useDerivativeMeasurement) {
-  if (!(dtSeconds > 0.0f) || dtSeconds > 0.1f) return 0.0f;
+  if (!isfinite(error) || !isfinite(dtSeconds) ||
+      !(dtSeconds > 0.0f) || dtSeconds > 0.1f ||
+      (useDerivativeMeasurement && !isfinite(derivativeMeasurement))) {
+    reset();
+    return 0.0f;
+  }
 
   float derivative = 0.0f;
   if (useDerivativeMeasurement) {
