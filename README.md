@@ -1,181 +1,174 @@
-# GyroGuard
+<div align="center">
 
-**A two-wheel self-balancing robot with autonomous obstacle avoidance.**
+# ⚖️ GyroGuard
+
+### Stay upright. See ahead. Move with intent.
+
+**An Arduino-powered, two-wheel self-balancing robot with autonomous obstacle avoidance.**
 
 [![Arduino CI](https://github.com/3more102/gyroguard-self-balancing-robot/actions/workflows/arduino-ci.yml/badge.svg)](https://github.com/3more102/gyroguard-self-balancing-robot/actions/workflows/arduino-ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Arduino%20Uno%20%7C%20Nano-00979D.svg)](https://www.arduino.cc/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
+[![Arduino](https://img.shields.io/badge/Arduino-Uno%20%7C%20Nano-00979D.svg)](https://www.arduino.cc/)
+[![C++](https://img.shields.io/badge/Language-C%2B%2B11-00599C.svg)](https://isocpp.org/)
 
-GyroGuard is an embedded-systems and control-engineering project built around a **differential-drive, two-wheel inverted pendulum**. It uses an Arduino Uno R3 or classic Nano (ATmega328P, 16 MHz) to estimate body pitch, stabilize the chassis, regulate wheel velocity, and navigate around detected obstacles.
+[**Explore the firmware**](firmware/GyroGuard) · [**Build the robot**](docs/HARDWARE.md) · [**Tune the controller**](docs/COMMISSIONING.md) · [**Understand the model**](docs/MATHEMATICAL_MODEL.md)
 
-The firmware combines real-time balance control with sensor validation, motion feedback, battery monitoring, and conservative fault handling. A MATLAB/Octave model and host-side unit tests support the control-system work.
+</div>
 
-> **Project scope:** GyroGuard is an engineering prototype and learning platform, not a finished consumer robot. Firmware defaults are starting points; reliable operation depends on the actual motors, mechanics, wiring, calibration, and controller tuning.
+---
 
-## Contents
+## Meet the robot
 
-- [Key features](#key-features)
-- [System architecture](#system-architecture)
-- [Hardware](#hardware)
-- [Wiring and pin assignments](#wiring-and-pin-assignments)
-- [Repository structure](#repository-structure)
-- [Build and upload](#build-and-upload)
-- [First startup and operation](#first-startup-and-operation)
-- [Control system and safety behavior](#control-system-and-safety-behavior)
-- [Tests and continuous integration](#tests-and-continuous-integration)
-- [Mathematical model](#mathematical-model)
-- [Safety notes and limitations](#safety-notes-and-limitations)
-- [License](#license)
+GyroGuard is a control-engineering project built around a **two-wheel, differential-drive inverted pendulum**. An Arduino Uno R3 or classic Nano reads an MPU-6050, estimates the robot's pitch, and continuously drives two geared motors to keep the chassis upright.
 
-## Key features
+Once balance-only operation is stable, a scanning ultrasonic sensor adds a second job: detect obstacles and choose a cautious direction of travel.
 
-- **Two-wheel balancing:** one driven wheel on each side of a shared axle; no caster or third support wheel.
-- **200 Hz attitude and balance loop:** MPU-6050 accelerometer/gyroscope fusion using a complementary filter, with gyro-rate damping and bounded PID output.
-- **50 Hz velocity loop:** quadrature encoder feedback adjusts the balance-angle target to regulate travel speed.
-- **Obstacle detection:** HC-SR04 ultrasonic ranging on an SG90 scanning servo.
-- **Non-blocking sensing:** echo capture uses an AVR pin-change interrupt so ranging does not block the balance loop.
-- **Conservative navigation:** a state machine validates range data before authorizing forward motion or a differential turn.
-- **Battery supervision:** monitors a protected 2-cell Li-ion pack and inhibits autonomous travel when voltage is low, invalid, or unavailable.
-- **Motion supervision:** encoder watchdogs detect missing wheel motion during straight travel and turns.
-- **Fault handling:** IMU identity checks, startup calibration validation, bounded I²C transactions, control-timing checks, tilt limits, and watchdog-reset recovery.
-- **Explicit arming:** motor outputs remain disabled after boot; balancing and autonomous travel require separate serial commands.
-- **Engineering tools:** host-side C++ tests, MATLAB/Octave plant analysis, and GitHub Actions build checks.
+The interesting part is not simply making the robot move. It is coordinating estimation, feedback control, sensing, navigation, and fault handling on a resource-constrained 8-bit microcontroller.
 
-## System architecture
+<div align="center">
 
-The balance controller remains active independently of the navigation logic. Obstacle sensing changes the motion request; it does not replace or pause the real-time balance loop.
+```text
+                    G Y R O G U A R D
+              ┌─────────────────────────┐
+              │   MPU-6050  ·  Arduino  │
+              │     Sense → Decide      │
+              └────────────┬────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │  BALANCE    │
+                    │  CONTROLLER │
+                    └──────┬──────┘
+                       ┌───┴───┐
+                    __/         \__
+                  ( O )         ( O )
+                   LEFT         RIGHT
+                   WHEEL         WHEEL
+```
+
+<sub>Two driven wheels. One shared axle. No caster or third support wheel.</sub>
+
+</div>
+
+> [!IMPORTANT]
+> **This is an engineering prototype, not a ready-to-drive product.** Initial gains and mechanical values are starting points, not proof of stability. Test with the wheels raised first, then use a tether or soft catch area. Keep an accessible physical power switch.
+
+## At a glance
+
+| ⚡ Balance | 🧭 Navigate | 🛡️ Protect | 🧪 Verify |
+|---|---|---|---|
+| 200 Hz attitude loop | HC-SR04 scanning | IMU and timing guards | C++ unit tests |
+| 50 Hz velocity loop | Servo left/center/right | Battery travel inhibit | Uno/Nano CI builds |
+| Complementary filter | Differential turns | Encoder motion watchdog | MATLAB / Octave model |
+| PID + gyro damping | Fresh-range checks | Watchdog reset recovery | Flash / SRAM budgets |
+
+## How GyroGuard works
+
+The balance loop is the priority. Navigation can request a change in speed or turning direction, but it must never pause the attitude controller.
 
 ```mermaid
 flowchart TD
-    IMU[MPU-6050 accelerometer and gyroscope] --> FILTER[Complementary filter]
-    FILTER --> BALANCE[Balance controller - 200 Hz]
-    ENCODERS[Left and right wheel encoders] --> VELOCITY[Velocity controller - 50 Hz]
-    VELOCITY --> SETPOINT[Pitch target adjustment]
-    SETPOINT --> BALANCE
-    SONAR[HC-SR04 and SG90 scanner] --> RANGE[Range validation]
-    RANGE --> NAV[Obstacle-avoidance state machine]
-    NAV --> REQUEST[Velocity and differential-turn request]
-    REQUEST --> VELOCITY
-    BATTERY[2S battery monitor] --> INTERLOCK[Autonomous travel interlock]
-    INTERLOCK --> NAV
-    BALANCE --> DRIVER[TB6612FNG dual H-bridge]
-    DRIVER --> MOTORS[Left and right geared DC motors]
-    FAULTS[IMU, timing, tilt and watchdog guards] --> SAFE[Fault handling]
-    SAFE --> DRIVER
+    IMU["MPU-6050<br/>Accelerometer + Gyroscope"] --> F["Complementary Filter"]
+    F --> P["Pitch Estimate"]
+    P --> B["Balance PID<br/>200 Hz"]
+    E["Wheel Encoders"] --> V["Velocity Controller<br/>50 Hz"]
+    V --> T["Pitch Target"]
+    T --> B
+    U["HC-SR04 + SG90"] --> R["Range Validation"]
+    R --> N["Obstacle Avoidance"]
+    N --> V
+    BAT["2S Battery Monitor"] --> G["Travel Interlock"]
+    G --> N
+    B --> D["TB6612FNG"]
+    D --> M["Left + Right Motors"]
+    SAFE["Tilt / IMU / Timing Guards"] --> D
 ```
 
-## Hardware
+### The control rhythm
 
-| Component | Recommended configuration | Purpose |
+1. **Sense** — read acceleration, angular rate, wheel motion, battery voltage, and ultrasonic echoes.
+2. **Estimate** — combine accelerometer and gyroscope data to estimate body pitch.
+3. **Balance** — run the inner controller at 200 Hz and command both motors to correct the fall.
+4. **Regulate** — use encoder feedback at 50 Hz to adjust the pitch target for requested travel speed.
+5. **Navigate** — scan for obstacles and request cautious forward motion or a differential turn.
+6. **Guard** — reject stale or invalid data and inhibit unsafe movement.
+
+## The hardware
+
+| Part | Baseline | Role |
 |---|---|---|
-| Controller | Arduino Uno R3 or classic Nano, ATmega328P | Real-time control |
-| IMU | MPU-6050 / GY-521 breakout | Pitch and angular-rate measurement |
-| Motors | 2 matched geared DC motors with quadrature encoders | Drive and motion feedback |
-| Wheels | 2 matched wheels on one axle | Differential drive and dynamic balance |
-| Motor driver | TB6612FNG dual H-bridge | Bidirectional motor control |
-| Distance sensor | HC-SR04 | Forward obstacle ranging |
-| Scanner | SG90 micro servo | Left/center/right sensor scanning |
-| Battery | Protected 2-cell Li-ion pack (7.4 V nominal) | Motor and system power |
-| Logic supply | Regulated 5 V buck converter | Arduino and sensor supply |
-| Battery monitor | 2 × 10 kΩ, 1% resistors and 100 nF capacitor | Battery-voltage measurement |
-| Mechanical parts | Rigid chassis, motor mounts, brackets and fasteners | Structural support |
+| Controller | Arduino Uno R3 / classic Nano (ATmega328P, 16 MHz) | Real-time firmware |
+| IMU | MPU-6050 / GY-521 | Pitch and angular-rate sensing |
+| Drive | 2 matched geared DC motors with quadrature encoders | Balance and movement |
+| Wheels | 2 matched wheels on one axle | Differential drive |
+| Motor driver | TB6612FNG dual H-bridge | Motor power stage |
+| Distance sensor | HC-SR04 | Obstacle ranging |
+| Servo | SG90 micro servo | Sensor scanning |
+| Battery | Protected 2-cell Li-ion pack (7.4 V nominal) | Main power |
+| Logic supply | Regulated 5 V buck converter | Arduino and peripherals |
 
-**Mechanical requirement:** install exactly two driven wheels, one on each side of the chassis, coaxial with one another. The robot balances dynamically and will not remain upright with motor power disabled.
+**Motor selection matters:** check each motor's stall current at the intended voltage against the actual driver breakout's continuous-current and thermal limits. Do not size the system using a peak-current headline alone.
 
-Select motors using their **stall current at the intended supply voltage**, not only their nominal running current. Confirm that the actual TB6612FNG breakout, battery, wiring, and thermal design can safely support the load.
+→ Full bill of materials, wiring, power design, and assembly notes: **[Hardware Guide](docs/HARDWARE.md)**
 
-For the full parts checklist, electrical notes, and assembly guidance, see [Hardware and Wiring](docs/HARDWARE.md).
+## Pin map
 
-## Wiring and pin assignments
+These assignments match the current defaults in `firmware/GyroGuard/config.h`.
 
-The following pin map matches the current firmware defaults in `firmware/GyroGuard/config.h`.
+<details>
+<summary><strong>Open sensor, encoder, and motor-driver pin assignments</strong></summary>
 
 ### Sensors and feedback
 
-| Device signal | Arduino pin |
-|---|---|
+| Signal | Arduino pin |
+|---|---:|
 | MPU-6050 SDA | A4 |
 | MPU-6050 SCL | A5 |
-| Left encoder channel A | D2 (INT0) |
-| Left encoder channel B | D4 |
-| Right encoder channel A | D3 (INT1) |
-| Right encoder channel B | D7 |
+| Left encoder A | D2 (INT0) |
+| Left encoder B | D4 |
+| Right encoder A | D3 (INT1) |
+| Right encoder B | D7 |
 | HC-SR04 TRIG | A0 |
 | HC-SR04 ECHO | A1 (pin-change interrupt) |
 | SG90 signal | D9 |
 | Battery-divider midpoint | A2 |
 
-### TB6612FNG motor driver
+### TB6612FNG
 
-| Driver signal | Arduino pin |
-|---|---|
-| PWMA — left motor PWM | D5 |
-| AIN1 — left motor direction | D8 |
-| AIN2 — left motor direction | D10 |
-| PWMB — right motor PWM | D6 |
-| BIN1 — right motor direction | D11 |
-| BIN2 — right motor direction | D12 |
+| Signal | Arduino pin |
+|---|---:|
+| PWMA — left PWM | D5 |
+| AIN1 — left direction | D8 |
+| AIN2 — left direction | D10 |
+| PWMB — right PWM | D6 |
+| BIN1 — right direction | D11 |
+| BIN2 — right direction | D12 |
 | STBY | A3 |
 
-The Servo library uses Timer1 on the Uno/Nano. Motor PWM is therefore assigned to D5 and D6. Do not move the HC-SR04 Echo signal without also updating the pin-change interrupt implementation.
+The Servo library uses Timer1 on Uno/Nano, so motor PWM is assigned to D5 and D6. The HC-SR04 Echo pin is tied to the current pin-change interrupt implementation; changing it requires a firmware update.
 
-### Power and wiring precautions
+</details>
 
-- Use a regulated 5 V supply with sufficient peak-current capacity for the controller, sensors, and servo. **Do not power the motors or servo from the Arduino 5 V pin.**
+<details>
+<summary><strong>Power design — read before wiring</strong></summary>
+
+- Use a regulated 5 V rail with enough peak current for the Arduino, sensors, and servo. Do not power motors or the servo from the Arduino 5 V pin.
 - Connect all system grounds together.
-- Feed the motor driver VM from a battery compatible with the motors and the exact driver breakout.
-- The documented battery divider is for a protected **2S pack only**. Never connect raw battery positive directly to A2, and do not use this divider with a 3S or higher-voltage pack.
-- Verify the divider output is below 4.3 V when the 2S pack is fully charged (8.4 V).
-- Add a 10 kΩ pull-down from TB6612FNG STBY to GND only after checking whether the specific breakout already has a pull-down or a pull-up.
-- Avoid powering the Uno simultaneously from USB and an external 5 V rail unless the board's power arrangement safely supports it.
+- Feed TB6612FNG VM from a supply compatible with the motors and the exact driver breakout.
+- The documented battery divider is for a protected **2S pack only**: 2 × 10 kΩ resistors and a 100 nF capacitor, with the midpoint connected to A2.
+- At a fully charged 2S voltage of 8.4 V, the equal-resistor divider produces 4.2 V at A2. Never connect raw battery positive to A2.
+- Do not use this divider with a 3S or higher-voltage pack.
+- Check the exact motor-driver breakout for an existing STBY pull-down or pull-up before adding the documented 10 kΩ pull-down.
+- Avoid simultaneously powering the Uno from USB and an external 5 V rail unless the board's power arrangement supports it safely.
 
-Read [Hardware and Wiring](docs/HARDWARE.md) before connecting the battery or motors.
+The default travel inhibit is 6.8 V, with recovery at 7.0 V. This is a movement interlock, not a battery-management system or cell-level protection.
 
-## Repository structure
+</details>
 
-```text
-gyroguard-self-balancing-robot/
-├── firmware/
-│   └── GyroGuard/
-│       ├── GyroGuard.ino          # Main application and scheduler
-│       ├── config.h               # Pins, timing, gains and limits
-│       ├── pid.*                  # PID controller
-│       ├── imu_mpu6050.*           # MPU-6050 interface
-│       ├── encoder.*               # Quadrature encoder feedback
-│       ├── motor_driver.*          # TB6612FNG interface
-│       ├── sonar.*                 # Non-blocking ultrasonic capture
-│       ├── obstacle_avoidance.*    # Servo scanning and navigation
-│       ├── battery_monitor.*       # Battery-voltage measurement
-│       └── *_guard.*               # Validation and safety policies
-├── docs/
-│   ├── HARDWARE.md
-│   ├── COMMISSIONING.md
-│   ├── MATHEMATICAL_MODEL.md
-│   ├── MEASUREMENT_WORKSHEET.md
-│   ├── RESOURCE_BUDGETS.md
-│   └── WATCHDOG.md
-├── matlab/
-│   ├── gyroguard_parameters.m
-│   ├── gyroguard_stage2_analysis.m
-│   └── README.md
-├── tests/                          # Host-side C++ unit tests and fakes
-├── .github/workflows/
-│   └── arduino-ci.yml
-└── README.md
-```
+## Bring-up: from compile to first balance
 
-## Build and upload
+**Do not enable obstacle avoidance until balance-only operation is stable.**
 
-### Requirements
-
-- Arduino IDE 2.x or Arduino CLI
-- Arduino AVR Boards core
-- Arduino Servo library
-- A USB data cable and the correct serial port for your board
-- A C++11 compiler for running host-side tests
-- GNU Octave or MATLAB for model analysis
-
-### Install the Arduino toolchain
+### 1 — Install the toolchain
 
 ```bash
 arduino-cli core update-index
@@ -183,178 +176,175 @@ arduino-cli core install arduino:avr
 arduino-cli lib install Servo
 ```
 
-### Compile for Arduino Uno R3
+### 2 — Compile
 
-Run from the repository root:
+From the repository root:
 
 ```bash
+# Arduino Uno R3
 arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
-```
 
-### Compile for classic Arduino Nano
-
-```bash
+# Classic Arduino Nano
 arduino-cli compile --fqbn arduino:avr:nano firmware/GyroGuard
 ```
 
-### Upload
-
-Connect the board, identify its serial port, and upload:
+### 3 — Upload
 
 ```bash
 arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 ```
 
-For a classic Nano, use `arduino:avr:nano` as the FQBN. Some Nano-compatible boards require a different bootloader/processor option; select the one matching your board.
+For a classic Nano, replace `arduino:avr:uno` with `arduino:avr:nano`. Some Nano-compatible boards require a different bootloader/processor selection.
 
-You can also open `firmware/GyroGuard/GyroGuard.ino` in Arduino IDE, select the correct board and port, then compile and upload.
+### 4 — Commission safely
 
-## First startup and operation
+1. Keep motor power disconnected while compiling and uploading.
+2. Open Serial Monitor at **115200 baud**.
+3. Hold the robot upright and completely still during startup IMU calibration (approximately 3 seconds).
+4. Verify pitch increases when the top of the robot is tilted forward.
+5. Raise the wheels and verify motor direction and encoder polarity.
+6. Support the robot in a clear, tethered test area.
+7. Hold it within 8° of upright and below 10°/s pitch rate, then send `b`.
+8. Tune balance-only behavior before sending `a`.
 
-**Do not begin autonomous navigation until balance-only operation is stable.**
+Follow the complete procedure in **[Commissioning & Tuning](docs/COMMISSIONING.md)**. Do not skip the polarity, power, or sensor checks.
 
-1. Assemble the two-wheel chassis and complete the wiring checks in [Hardware and Wiring](docs/HARDWARE.md).
-2. Keep the motor battery disconnected while compiling and uploading the firmware.
-3. Open Serial Monitor at **115200 baud**.
-4. Hold the robot upright and stationary during the startup IMU calibration (approximately 3 seconds).
-5. Confirm that pitch increases when the top of the robot is tilted forward and decreases when tilted backward.
-6. With the wheels raised, verify motor direction and encoder polarity before attempting to balance.
-7. Support the robot in a clear test area. Hold it within 8° of upright and below 10°/s pitch rate, then send `b` to arm balance.
-8. Tune and verify balance-only operation before sending `a` to enable autonomous cruise and obstacle avoidance.
-9. Use `s` to stop autonomous travel while keeping the balance controller active.
-10. Use the physical battery switch for an emergency power cut.
+## Command deck
 
-### Serial commands
+Send commands through Serial Monitor at 115200 baud.
 
-| Command | Function |
-|---|---|
-| `b` | Arm the balance controller when the IMU sample is fresh and the robot is sufficiently upright and still |
-| `a` | Enable autonomous cruise and obstacle avoidance; requires balance to be armed and valid battery conditions |
-| `s` | Stop autonomous travel while keeping balance active |
-| `d` | Disarm motor outputs; the robot will fall unless physically supported |
-| `t` | Toggle telemetry |
-| `?` | Display command help |
+| Key | Command | What happens |
+|:---:|---|---|
+| `b` | **Balance** | Arms the balance controller if IMU freshness, angle, and rate interlocks pass |
+| `a` | **Autonomy** | Enables cruise and obstacle avoidance if balance is armed and battery conditions are valid |
+| `s` | **Stop travel** | Stops autonomous movement but keeps balancing active |
+| `d` | **Disarm** | Disables motor outputs; the robot will fall unless physically supported |
+| `t` | **Telemetry** | Toggles telemetry output |
+| `?` | **Help** | Prints command help |
 
-The firmware blocks balance arming if the latest IMU sample is older than 15 ms, the pitch is outside 8° of upright, or the pitch rate is 10°/s or higher.
+### Operating states
 
-For the complete, ordered calibration and tuning procedure, see [Commissioning and Tuning](docs/COMMISSIONING.md).
-
-## Control system and safety behavior
-
-### Control loops
-
-| Layer | Rate | Responsibility |
-|---|---:|---|
-| Attitude estimation and balance | 200 Hz | Estimate pitch and stabilize the body |
-| Wheel-velocity control | 50 Hz | Use encoder feedback to adjust the pitch target |
-| Main telemetry | 10 Hz | Report pitch, rate, speed, target, motor command and state |
-| Battery sampling | 10 Hz | Monitor pack voltage and travel-inhibit conditions |
-
-### Navigation policy
-
-- The HC-SR04 is scanned at center during travel and to the left/right when an obstacle is detected.
-- Forward motion requires a fresh, valid center-range measurement.
-- Unknown, invalid, or stale range data does not authorize forward travel.
-- After a scan or turn, the center servo must settle and a new forward measurement must confirm clearance.
-- If neither side has verified clearance, the robot holds position and retries sensing.
-- The robot does not reverse because it has no rear-facing range sensor.
-
-### Fault handling and interlocks
-
-- Motor outputs are disabled on boot. A normal boot or watchdog reset never automatically re-arms the robot.
-- MPU-6050 identity is checked, startup calibration is validated, and I²C transactions are bounded by a 5 ms timeout.
-- A tilt beyond the configured 32° safety limit or a control-loop gap beyond 20 ms triggers a latched control fault and disables the motor driver.
-- Low or invalid battery voltage inhibits autonomous travel while the balance controller remains active. The default 2S travel-inhibit threshold is 6.8 V; recovery requires at least 7.0 V and a deliberate new `a` command.
-- During straight autonomous travel, both encoders must report motion within 750 ms. During a differential turn, at least one encoder must report motion within 400 ms.
-- An encoder-motion fault inhibits autonomous travel and requires a power cycle after inspection.
-
-These are firmware guardrails, not substitutes for correct wiring, current limiting, mechanical inspection, or supervised testing. See [Watchdog Recovery](docs/WATCHDOG.md) for reset behavior.
-
-## Tests and continuous integration
-
-The GitHub Actions workflow runs:
-
-- C++11 host unit tests for PID control, navigation policy, range validation, sonar classification, obstacle-avoidance state transitions, servo settling, IMU validation, balance arming, encoder-motion supervision, and battery monitoring.
-- MATLAB/Octave Stage 2 model checks using GNU Octave.
-- Arduino Uno and classic Nano compilation.
-- Flash and static SRAM checks for each AVR target.
-
-The current CI budgets are **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget leaves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P. Passing the static budget does not replace stack analysis or hardware stress testing.
-
-Run individual host tests from the repository root:
-
-```bash
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test
-/tmp/gyroguard-pid-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
-/tmp/gyroguard-navigation-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
-/tmp/gyroguard-range-guard-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_sonar_math.cpp -o /tmp/gyroguard-sonar-test
-/tmp/gyroguard-sonar-test
-
-g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
-/tmp/gyroguard-navigation-state-machine-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
-/tmp/gyroguard-imu-validation-test
-
-g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_servo_center_settle.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-servo-settle-test
-/tmp/gyroguard-servo-settle-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
-/tmp/gyroguard-arm-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
-/tmp/gyroguard-motion-guard-test
-
-g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
-/tmp/gyroguard-battery-policy-test
-
-g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes_battery tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test
-/tmp/gyroguard-battery-monitor-test
+```mermaid
+stateDiagram-v2
+    [*] --> DISARMED: Power on / reset
+    DISARMED --> BALANCE: b - interlocks pass
+    BALANCE --> AUTONOMOUS: a - travel checks pass
+    AUTONOMOUS --> BALANCE: s - stop travel
+    BALANCE --> DISARMED: d - disarm
+    AUTONOMOUS --> DISARMED: d - disarm
+    BALANCE --> MOTOR_OFF_FAULT: Tilt / IMU / timing fault
+    AUTONOMOUS --> MOTOR_OFF_FAULT: Tilt / IMU / timing fault
+    MOTOR_OFF_FAULT --> [*]: Inspect and power-cycle
 ```
 
-## Mathematical model
+A normal boot or watchdog reset leaves the robot disarmed. An encoder-motion fault inhibits autonomous travel while balance remains active; inspect the cause and power-cycle before attempting autonomy again.
 
-The repository includes a parameterized sagittal-plane, two-wheel inverted-pendulum model. It accounts for motor reaction torque on the body, motor back-EMF based on rotor speed relative to the body-mounted stator, and reflected motor-rotor inertia in the coupled mass matrix.
+## Safety logic is part of the design
 
-Run from the repository root in MATLAB:
+| Guard | Firmware behavior |
+|---|---|
+| IMU identity / read failure | Latches a control fault and disables motor output |
+| Startup calibration validation | Rejects unstable or implausible calibration samples |
+| I²C transaction timeout | 5 ms bound; failure triggers a latched motor-off fault |
+| Excessive tilt | Configured limit: 32° |
+| Control-loop delay | A gap above 20 ms triggers a latched control fault |
+| Stale or invalid range | Holds autonomous translation at zero |
+| Low / invalid battery | Inhibits autonomous travel; balance remains active |
+| Missing encoder motion | Inhibits autonomous travel and requires inspection |
+
+The robot does not reverse when the left and right scans fail to verify clearance: there is no rear-facing sensor. The ultrasonic sensor is a single-beam rangefinder and cannot provide full 360° perception, SLAM, or map-based navigation.
+
+## Engineering bench
+
+GyroGuard includes more than firmware. The repository also contains tests, resource budgets, and a parameterized mathematical model.
+
+| Area | Included work |
+|---|---|
+| Embedded firmware | PID, IMU, encoders, motor driver, sonar, navigation, battery monitor |
+| Host tests | PID, range guards, navigation policy/state machine, IMU validation, arming, motion and battery guards |
+| AVR build checks | Arduino Uno and classic Nano |
+| Resource constraints | 24,000-byte flash and 1,200-byte static SRAM project budgets |
+| Model analysis | Nonlinear plant, analytical linearization, finite-difference checks, open-loop poles, controllability |
+| Watchdog recovery | Early ATmega328P watchdog reset handling and disarmed restart behavior |
+
+The static SRAM budget leaves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P. Passing the static budget is not a substitute for stack analysis or hardware stress testing.
+
+<details>
+<summary><strong>Run the host-side C++ tests</strong></summary>
+
+Requires a C++11 compiler. Run from the repository root:
+
+```bash
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test && /tmp/gyroguard-pid-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test && /tmp/gyroguard-navigation-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test && /tmp/gyroguard-range-guard-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_sonar_math.cpp -o /tmp/gyroguard-sonar-test && /tmp/gyroguard-sonar-test
+g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test && /tmp/gyroguard-navigation-state-machine-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test && /tmp/gyroguard-imu-validation-test
+g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_servo_center_settle.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-servo-settle-test && /tmp/gyroguard-servo-settle-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test && /tmp/gyroguard-arm-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test && /tmp/gyroguard-motion-guard-test
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test && /tmp/gyroguard-battery-policy-test
+g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes_battery tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test && /tmp/gyroguard-battery-monitor-test
+```
+
+</details>
+
+<details>
+<summary><strong>Run the MATLAB / GNU Octave model</strong></summary>
+
+MATLAB:
 
 ```matlab
 addpath('matlab');
 results = gyroguard_stage2_analysis(false);
 ```
 
-Or run with GNU Octave:
+GNU Octave:
 
 ```bash
 octave --quiet --eval "addpath('matlab'); gyroguard_stage2_analysis(false);"
 ```
 
-The analysis checks actuation signs, compares analytical linearization with finite-difference Jacobians, reports open-loop poles and controllability, and compares nonlinear and linearized fall responses.
+The model includes motor reaction torque on the body, back-EMF based on rotor speed relative to the body-mounted stator, and reflected motor-rotor inertia. It checks actuation signs, compares analytical linearization with finite-difference Jacobians, reports open-loop poles and controllability, and compares nonlinear and linearized fall responses.
 
-**Important:** the supplied model parameters are illustrative placeholders, not measured properties of the assembled robot. Complete [the Measurement Worksheet](docs/MEASUREMENT_WORKSHEET.md) and update `matlab/gyroguard_parameters.m` before using numerical results as hardware-specific evidence. See [the Mathematical Model](docs/MATHEMATICAL_MODEL.md) for assumptions and derivation.
+**Model parameters are illustrative placeholders.** Complete the [Measurement Worksheet](docs/MEASUREMENT_WORKSHEET.md) and update `matlab/gyroguard_parameters.m` before treating simulation results as properties of the physical robot. See [Mathematical Model](docs/MATHEMATICAL_MODEL.md) and [MATLAB README](matlab/README.md).
 
-## Safety notes and limitations
+</details>
 
-- Perform initial motor and encoder checks with the wheels raised. Use a tether or soft catch area for first balance tests.
-- Keep hands, hair, cables, and loose clothing away from the wheels. Keep an accessible physical power switch and battery disconnect.
-- Verify motor stall current against the actual motor-driver breakout and battery limits before applying motor power.
-- The HC-SR04 is a single-beam sensor. Soft, narrow, angled, or sound-absorbing objects may not produce reliable echoes.
-- Echoes inside the nominal 30 mm near-field range are treated as obstructions, not precise distance measurements.
-- A single front scanner does not provide 360° perception, rear coverage, SLAM, or map-based navigation.
-- The avoidance turn is a timed differential-drive maneuver. It is not a localization or path-planning system.
-- The battery monitor is a travel interlock, not a battery-management system. Use a protected 2S pack/BMS and a suitable charger.
-- Encoder watchdogs detect missing motion pulses; they do not detect every possible wiring, polarity, or intermittent-feedback fault.
-- Software cannot compensate for an under-rated motor driver, loose chassis, poor wheel alignment, unsuitable motors, or incorrect IMU mounting.
-- Never assume that a successful compile or passing unit tests proves the assembled robot is safe or stable.
+## Explore the repository
 
-Read the [Hardware Guide](docs/HARDWARE.md) and [Commissioning Guide](docs/COMMISSIONING.md) before powered testing.
+| Want to… | Start here |
+|---|---|
+| Select parts and wire the robot | [Hardware Guide](docs/HARDWARE.md) |
+| Calibrate, commission, and tune | [Commissioning Guide](docs/COMMISSIONING.md) |
+| Understand the plant equations | [Mathematical Model](docs/MATHEMATICAL_MODEL.md) |
+| Record real hardware parameters | [Measurement Worksheet](docs/MEASUREMENT_WORKSHEET.md) |
+| Review memory limits | [Resource Budgets](docs/RESOURCE_BUDGETS.md) |
+| Understand reset recovery | [Watchdog Notes](docs/WATCHDOG.md) |
+| Explore the firmware | [firmware/GyroGuard](firmware/GyroGuard) |
+| Review automated checks | [GitHub Actions workflow](.github/workflows/arduino-ci.yml) |
+
+## Known limitations
+
+- The HC-SR04 may miss soft, narrow, angled, or sound-absorbing objects. Echoes inside the nominal 30 mm near-field range are treated as obstructions, not precise distance measurements.
+- A single front scanner cannot see behind the robot or provide 360° perception.
+- Obstacle avoidance uses timed differential-drive turns; it is not SLAM, localization, or map-based path planning.
+- The battery monitor is a travel interlock, not a BMS. Use a protected 2S pack and a compatible charger.
+- Encoder watchdogs detect missing motion pulses, not every possible wiring, polarity, or intermittent-feedback fault.
+- Software cannot compensate for an under-rated driver, loose chassis, poor wheel alignment, unsuitable motors, or incorrect IMU mounting.
+- A successful compile or passing unit tests does not prove that the physical robot is safe or stable.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+Released under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+
+**GyroGuard — balance is only the beginning.**
+
+<sub>Built for learning, experimentation, and embedded control engineering.</sub>
+
+</div>
