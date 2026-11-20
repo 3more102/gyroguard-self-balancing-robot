@@ -38,6 +38,8 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | HC-SR04 ECHO | A1 (PCINT9) |
 | SG90 signal | D9 |
 
+The standard Arduino Servo library uses Timer1 on the ATmega328P and disables analogWrite PWM on D9 and D10. This pin map deliberately uses D5/D6 for motor PWM; D10 is only a digital motor-direction signal. Do not move either motor PWM output to D9 or D10 while Servo is enabled.
+
 Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code.
 
 ## 3. Power wiring

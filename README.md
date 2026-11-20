@@ -7,6 +7,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - 200 Hz MPU-6050 attitude loop with complementary filtering
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
+- Host-tested encoder-to-linear-speed conversion
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - TB6612FNG dual H-bridge driver
@@ -43,9 +44,13 @@ Choose motors whose stall current is within the driver and battery limits. The T
       pid.h / pid.cpp
       imu_mpu6050.h / imu_mpu6050.cpp
       encoder.h / encoder.cpp
+      encoder_math.h
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       obstacle_avoidance.h / obstacle_avoidance.cpp
+    tests/
+      test_pid.cpp
+      test_encoder_math.cpp
     docs/
       HARDWARE.md
       COMMISSIONING.md
@@ -56,15 +61,19 @@ Choose motors whose stall current is within the driver and battery limits. The T
 1. Install Arduino IDE 2.x or Arduino CLI.
 2. Open firmware/GyroGuard/GyroGuard.ino.
 3. Select **Arduino Uno** (or classic Nano with ATmega328P).
-4. Compile and upload. The sketch uses Wire from the AVR core and the Servo library. Install Servo through Arduino IDE Library Manager or run arduino-cli lib install Servo.
+4. The sketch uses Wire from the AVR core and the Arduino Servo library. Install Servo through Arduino IDE Library Manager or run:
+
+       arduino-cli core update-index
+       arduino-cli core install arduino:avr@1.8.8
+       arduino-cli lib update-index
+       arduino-cli lib install Servo@1.3.0
+
 5. Read the hardware and commissioning guides before applying motor power.
 
-Arduino CLI example:
+Arduino CLI build commands:
 
-    arduino-cli core update-index
-    arduino-cli core install arduino:avr
-    arduino-cli lib install Servo
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
+    arduino-cli compile --fqbn arduino:avr:nano firmware/GyroGuard
     arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 
 ## First-use behavior

@@ -37,6 +37,10 @@ constexpr int8_t RIGHT_ENCODER_SIGN = +1;
 constexpr float ENCODER_COUNTS_PER_WHEEL_REV = 660.0f;
 constexpr float WHEEL_DIAMETER_MM = 65.0f;
 constexpr float WHEEL_CIRCUMFERENCE_MM = 3.14159265f * WHEEL_DIAMETER_MM;
+static_assert(ENCODER_COUNTS_PER_WHEEL_REV > 0.0f,
+              "Encoder counts per wheel revolution must be positive");
+static_assert(WHEEL_DIAMETER_MM > 0.0f,
+              "Wheel diameter must be positive");
 
 // Real-time scheduling
 constexpr uint32_t CONTROL_PERIOD_US = 5000UL;       // 200 Hz
