@@ -1,26 +1,35 @@
 #include "obstacle_avoidance.h"
+#include "navigation_logic.h"
 #include "config.h"
 
 void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
   servo_.write(SERVO_CENTER_DEG);
   sonar_.begin();
-  state_ = DRIVE;
   autonomous_ = AUTO_DRIVE_ON_BOOT;
+  state_ = autonomous_ ? WAIT_FRONT : DRIVE;
+  ignoreNextSonarResult_ = false;
   stateSinceMs_ = millis();
   lastSonarStartMs_ = 0;
-  haveLeft_ = false;
-  haveRight_ = false;
+  leftValid_ = false;
+  rightValid_ = false;
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
   turnDirection_ = 0.0f;
 }
 
 void ObstacleAvoidance::setAutonomous(bool enabled) {
+  if (sonar_.busy()) ignoreNextSonarResult_ = true;
+
   autonomous_ = enabled;
-  if (!enabled) {
+  frontDistanceValid_ = false;
+  servo_.write(SERVO_CENTER_DEG);
+
+  if (enabled) {
+    state_ = WAIT_FRONT;
+    lastSonarStartMs_ = millis();
+  } else {
     state_ = DRIVE;
-    servo_.write(SERVO_CENTER_DEG);
   }
 }
 
@@ -37,8 +46,8 @@ uint16_t ObstacleAvoidance::frontDistanceMm() const {
 }
 
 void ObstacleAvoidance::startScan(uint32_t nowMs) {
-  haveLeft_ = false;
-  haveRight_ = false;
+  leftValid_ = false;
+  rightValid_ = false;
   servo_.write(SERVO_LEFT_DEG);
   state_ = SCAN_LEFT_SETTLE;
   stateSinceMs_ = nowMs;
@@ -58,33 +67,55 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   bool valid = false;
   if (!sonar_.takeDistanceMm(distance, valid)) return;
 
-  if (state_ == DRIVE) {
+  // A measurement started before an autonomy-mode change may have been taken
+  // with the servo pointed sideways. Never reinterpret it as a front reading.
+  if (ignoreNextSonarResult_) {
+    ignoreNextSonarResult_ = false;
+    return;
+  }
+
+  if (state_ == DRIVE || state_ == WAIT_FRONT_MEASURE) {
+    const bool wasWaitingForFront = state_ == WAIT_FRONT_MEASURE;
     frontDistanceValid_ = valid;
     if (valid) frontDistanceMm_ = distance;
-    if (valid && autonomous_ && distance < OBSTACLE_STOP_MM) {
+
+    if (!autonomous_) return;
+
+    // Unknown front range is not evidence of a clear path. Hold travel while
+    // preserving the independent balance controller, then retry ranging.
+    if (!valid) {
+      state_ = WAIT_FRONT;
+      stateSinceMs_ = nowMs;
+      return;
+    }
+
+    if (distance < OBSTACLE_STOP_MM) {
       startScan(nowMs);
+    } else if (wasWaitingForFront) {
+      state_ = DRIVE;
+      stateSinceMs_ = nowMs;
     }
   } else if (state_ == SCAN_LEFT_MEASURE) {
-    leftDistanceMm_ = valid ? distance : SONAR_MAX_RANGE_MM;
-    haveLeft_ = true;
+    leftValid_ = valid;
+    leftDistanceMm_ = valid ? distance : 0;
     servo_.write(SERVO_RIGHT_DEG);
     state_ = SCAN_RIGHT_SETTLE;
     stateSinceMs_ = nowMs;
   } else if (state_ == SCAN_RIGHT_MEASURE) {
-    rightDistanceMm_ = valid ? distance : SONAR_MAX_RANGE_MM;
-    haveRight_ = true;
+    rightValid_ = valid;
+    rightDistanceMm_ = valid ? distance : 0;
 
-    if (haveLeft_ && haveRight_) {
-      turnDirection_ = (leftDistanceMm_ > rightDistanceMm_) ? -1.0f : 1.0f;
-    } else if (haveLeft_) {
-      turnDirection_ = -1.0f;
-    } else {
-      turnDirection_ = 1.0f;
-    }
+    const ScanDecision decision = decideScan(
+        leftValid_, leftDistanceMm_, rightValid_, rightDistanceMm_,
+        OBSTACLE_CLEAR_MM);
 
     servo_.write(SERVO_CENTER_DEG);
-    if (leftDistanceMm_ < OBSTACLE_CLEAR_MM &&
-        rightDistanceMm_ < OBSTACLE_CLEAR_MM) {
+    turnDirection_ = static_cast<float>(decision.turnDirection);
+
+    if (decision.action == ScanAction::Hold) {
+      // Both side readings are unknown. Do not reverse or turn blindly.
+      state_ = BLOCKED;
+    } else if (decision.action == ScanAction::Reverse) {
       state_ = REVERSING;
     } else {
       state_ = TURNING;
@@ -100,6 +131,16 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
   if (!autonomous_) return {0.0f, 0.0f};
 
   switch (state_) {
+    case WAIT_FRONT:
+      if (!sonar_.busy() &&
+          static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
+        startSonar(nowUs, nowMs, WAIT_FRONT_MEASURE);
+      }
+      return {0.0f, 0.0f};
+
+    case WAIT_FRONT_MEASURE:
+      return {0.0f, 0.0f};
+
     case DRIVE:
       if (!sonar_.busy() &&
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
@@ -127,12 +168,13 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
 
     case TURNING:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= TURN_DURATION_MS) {
-        state_ = DRIVE;
+        state_ = WAIT_FRONT;
         stateSinceMs_ = nowMs;
         lastSonarStartMs_ = nowMs;
-        return {CRUISE_SPEED_MM_S, 0.0f};
+        frontDistanceValid_ = false;
+        return {0.0f, 0.0f};
       }
-      // Positive bias speeds left wheel relative to right wheel (right turn).
+      // Positive bias speeds the left wheel relative to the right wheel.
       return {0.0f, turnDirection_ * TURN_BIAS_PWM};
 
     case REVERSING:
@@ -141,6 +183,13 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
         stateSinceMs_ = nowMs;
       }
       return {REVERSE_SPEED_MM_S, 0.0f};
+
+    case BLOCKED:
+      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= BLOCKED_RESCAN_MS) {
+        startScan(nowMs);
+      }
+      return {0.0f, 0.0f};
   }
+
   return {0.0f, 0.0f};
 }

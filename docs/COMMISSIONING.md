@@ -55,9 +55,11 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward the side with more measured clearance.
-6. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
-7. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+5. Send a only after balance-only operation is stable. Autonomous travel begins only after a valid forward range is received. If the front reading is invalid, the robot holds its travel command at zero while continuing to balance.
+6. When an obstacle is inside the stop distance, the robot scans left/right and turns toward the side with more measured clearance.
+7. A missing echo during a side scan is treated as unknown, not as open space. If both side readings are invalid, the robot holds position and retries the scan instead of reversing or turning blindly.
+8. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
+9. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
@@ -75,7 +77,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-After a fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid ultrasonic reading does not disable balancing; it prevents autonomous travel until a valid forward reading is available. After a latched fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 

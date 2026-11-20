@@ -75,6 +75,7 @@ constexpr uint16_t SERVO_SETTLE_MS = 250;
 constexpr uint16_t SONAR_RETRY_MS = 65;
 constexpr uint16_t TURN_DURATION_MS = 650;
 constexpr uint16_t REVERSE_DURATION_MS = 300;
+constexpr uint16_t BLOCKED_RESCAN_MS = 1000;
 constexpr float TURN_BIAS_PWM = 38.0f;
 constexpr float REVERSE_SPEED_MM_S = -55.0f;
 

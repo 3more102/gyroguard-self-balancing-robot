@@ -45,10 +45,14 @@ Choose motors whose stall current is within the driver and battery limits. The T
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
+      navigation_logic.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_navigation_logic.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -73,9 +77,11 @@ Arduino CLI example:
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
+- Autonomous travel remains stopped until a valid forward sonar reading is received. A timeout or out-of-range reading is treated as unknown, not as a clear path.
+- If both side scans are invalid, the robot holds position and retries rather than choosing a direction without evidence.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
-- A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- A tilt, IMU or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
@@ -83,13 +89,14 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+3. **Navigation:** the HC-SR04 is scanned at the front during travel, then left/right after an obstacle is detected. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
+- A missing echo is treated as unknown. The robot will hold autonomous travel until a valid front measurement is restored; both invalid side scans cause a stationary retry.
 - A single forward scanner does not provide full 360-degree perception.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
