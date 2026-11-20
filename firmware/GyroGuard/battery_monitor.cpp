@@ -7,6 +7,7 @@ void BatteryMonitor::begin() {
   lastSampleMs_ = 0;
   filteredMillivolts_ = 0;
   initialized_ = false;
+  hasValidSample_ = false;
   sampleValid_ = false;
   lowBattery_ = false;
 }
@@ -26,20 +27,24 @@ bool BatteryMonitor::update(uint32_t nowMs) {
   sampleValid_ = batteryVoltagePlausible(
       sampleMv, BATTERY_MIN_VALID_MV, BATTERY_MAX_VALID_MV);
 
-  if (!initialized_) {
-    filteredMillivolts_ = sampleMv;
-  } else {
-    const uint32_t divisor = BATTERY_FILTER_DIVISOR;
-    const uint32_t weighted =
-        (divisor - 1U) * filteredMillivolts_ + sampleMv + divisor / 2U;
-    filteredMillivolts_ = static_cast<uint16_t>(weighted / divisor);
+  // Invalid raw samples inhibit travel immediately and do not corrupt the
+  // filter or clear an existing low-battery latch.
+  if (sampleValid_) {
+    if (!hasValidSample_) {
+      filteredMillivolts_ = sampleMv;
+      hasValidSample_ = true;
+    } else {
+      const uint32_t divisor = BATTERY_FILTER_DIVISOR;
+      const uint32_t weighted =
+          (divisor - 1U) * filteredMillivolts_ + sampleMv + divisor / 2U;
+      filteredMillivolts_ = static_cast<uint16_t>(weighted / divisor);
+    }
+
+    lowBattery_ = batteryUpdateTravelInhibit(
+        lowBattery_, sampleMv, filteredMillivolts_, true,
+        LOW_BATTERY_INHIBIT_MV, LOW_BATTERY_RECOVERY_MV);
   }
 
-  // Use the raw sample for the low-voltage latch so filtering cannot delay
-  // a safety inhibit by several 100 ms sampling periods.
-  lowBattery_ = batteryTravelInhibited(
-      lowBattery_, sampleMv,
-      LOW_BATTERY_INHIBIT_MV, LOW_BATTERY_RECOVERY_MV);
   lastSampleMs_ = nowMs;
   initialized_ = true;
   return true;
@@ -63,5 +68,5 @@ bool BatteryMonitor::travelInhibited() const {
 }
 
 uint16_t BatteryMonitor::millivolts() const {
-  return initialized_ ? filteredMillivolts_ : 0U;
+  return hasValidSample_ ? filteredMillivolts_ : 0U;
 }

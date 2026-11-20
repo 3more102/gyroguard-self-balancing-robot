@@ -10,7 +10,6 @@ int main() {
   assert(batteryMillivoltsFromAdc(1023, 65535, 255) == 65535U);
   assert(batteryMillivoltsFromAdc(1023, 5000, 0) == 0U);
 
-  // Missing, shorted or over-range divider readings are not valid battery data.
   assert(!batteryVoltagePlausible(0, 5000, 9000));
   assert(!batteryVoltagePlausible(4999, 5000, 9000));
   assert(batteryVoltagePlausible(5000, 5000, 9000));
@@ -18,16 +17,16 @@ int main() {
   assert(batteryVoltagePlausible(9000, 5000, 9000));
   assert(!batteryVoltagePlausible(9001, 5000, 9000));
 
-  // Assert at/below the low threshold; do not assert just above it.
-  assert(batteryTravelInhibited(false, 6800, 6800, 7000));
-  assert(!batteryTravelInhibited(false, 6801, 6800, 7000));
+  assert(batteryUpdateTravelInhibit(false, 6800, 6800, true, 6800, 7000));
+  assert(!batteryUpdateTravelInhibit(false, 6801, 6801, true, 6800, 7000));
 
-  // Once inhibited, require the higher recovery threshold.
-  assert(batteryTravelInhibited(true, 6800, 6800, 7000));
-  assert(batteryTravelInhibited(true, 6999, 6800, 7000));
-  assert(!batteryTravelInhibited(true, 7000, 6800, 7000));
+  assert(batteryUpdateTravelInhibit(true, 6999, 7500, true, 6800, 7000));
+  assert(batteryUpdateTravelInhibit(true, 7000, 6999, true, 6800, 7000));
+  assert(!batteryUpdateTravelInhibit(true, 7000, 7000, true, 6800, 7000));
 
-  // A recovered battery must remain clear above the inhibit threshold.
-  assert(!batteryTravelInhibited(false, 7400, 6800, 7000));
+  // Invalid raw samples block travel separately and cannot clear a prior latch.
+  assert(!batteryUpdateTravelInhibit(false, 0, 8400, false, 6800, 7000));
+  assert(batteryUpdateTravelInhibit(true, 10000, 6800, false, 6800, 7000));
+  assert(!batteryUpdateTravelInhibit(false, 7400, 7400, true, 6800, 7000));
   return 0;
 }
