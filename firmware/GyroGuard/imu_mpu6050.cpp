@@ -10,6 +10,9 @@ constexpr uint8_t REG_GYRO_CONFIG = 0x1B;
 constexpr uint8_t REG_ACCEL_CONFIG = 0x1C;
 constexpr uint8_t REG_ACCEL_XOUT_H = 0x3B;
 constexpr uint8_t REG_PWR_MGMT_1 = 0x6B;
+constexpr uint8_t REG_WHO_AM_I = 0x75;
+constexpr uint8_t WHO_AM_I_MASK = 0x7E;
+constexpr uint8_t WHO_AM_I_VALUE = 0x68;
 constexpr float GYRO_LSB_PER_DPS = 131.0f;
 constexpr float RAD_TO_DEG_F = 57.2957795f;
 }
@@ -18,7 +21,18 @@ bool MPU6050::begin() {
   initialized_ = false;
   filterInitialized_ = false;
   Wire.begin();
+#if defined(WIRE_HAS_TIMEOUT)
+  // Prevent a stuck I2C bus from blocking the real-time balance loop forever.
+  Wire.setWireTimeout(25000UL, true);
+#endif
   Wire.setClock(400000UL);
+
+  uint8_t whoAmI = 0;
+  if (!readRegisters(REG_WHO_AM_I, &whoAmI, 1) ||
+      (whoAmI & WHO_AM_I_MASK) != WHO_AM_I_VALUE) {
+    return false;
+  }
+
   if (!writeRegister(REG_PWR_MGMT_1, 0x01)) return false;
   delay(50);
   if (!writeRegister(REG_CONFIG, 0x03)) return false;       // DLPF ~44/42 Hz
@@ -31,17 +45,45 @@ bool MPU6050::begin() {
 }
 
 bool MPU6050::writeRegister(uint8_t reg, uint8_t value) {
+#if defined(WIRE_HAS_TIMEOUT)
+  Wire.clearWireTimeoutFlag();
+#endif
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(reg);
   Wire.write(value);
-  return Wire.endTransmission() == 0;
+  const uint8_t status = Wire.endTransmission();
+#if defined(WIRE_HAS_TIMEOUT)
+  const bool timedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (timedOut) return false;
+#endif
+  return status == 0;
 }
 
 bool MPU6050::readRegisters(uint8_t firstReg, uint8_t *buffer, uint8_t length) {
+#if defined(WIRE_HAS_TIMEOUT)
+  Wire.clearWireTimeoutFlag();
+#endif
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(firstReg);
-  if (Wire.endTransmission(false) != 0) return false;
-  const uint8_t received = Wire.requestFrom(MPU6050_ADDRESS, length, (uint8_t)true);
+  const uint8_t txStatus = Wire.endTransmission(false);
+#if defined(WIRE_HAS_TIMEOUT)
+  const bool txTimedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (txTimedOut) return false;
+#endif
+  if (txStatus != 0) return false;
+
+  const uint8_t received =
+      Wire.requestFrom(MPU6050_ADDRESS, length, (uint8_t)true);
+#if defined(WIRE_HAS_TIMEOUT)
+  const bool rxTimedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (rxTimedOut) {
+    while (Wire.available()) (void)Wire.read();
+    return false;
+  }
+#endif
   if (received != length) {
     while (Wire.available()) (void)Wire.read();
     return false;

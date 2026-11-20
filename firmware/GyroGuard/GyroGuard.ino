@@ -112,7 +112,7 @@ void setup() {
   Serial.println(F("Keep robot upright and motionless during IMU calibration."));
 
   if (!imu.begin()) {
-    latchFault(F("MPU6050 not detected / I2C setup failed"));
+    latchFault(F("MPU6050 identity / I2C setup failed"));
     return;
   }
 

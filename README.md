@@ -10,6 +10,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown sensor data never authorizes forward motion or an unverified turn
+- MPU-6050 identity verification and bounded I2C transactions (25 ms timeout on AVR Wire cores that support it)
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
