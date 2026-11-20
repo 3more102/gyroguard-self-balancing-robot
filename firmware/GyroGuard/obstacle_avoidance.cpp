@@ -7,10 +7,10 @@ void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
   servo_.write(SERVO_CENTER_DEG);
   sonar_.begin();
-  state_ = DRIVE;
   autonomous_ = AUTO_DRIVE_ON_BOOT;
+  state_ = autonomous_ ? SENSOR_HOLD : DRIVE;
   stateSinceMs_ = millis();
-  lastSonarStartMs_ = 0;
+  lastSonarStartMs_ = stateSinceMs_;
   frontDistanceAtMs_ = 0;
   leftDistanceMm_ = 0;
   rightDistanceMm_ = 0;
@@ -37,9 +37,12 @@ void ObstacleAvoidance::setAutonomous(bool enabled) {
     servo_.write(SERVO_CENTER_DEG);
   } else {
     autonomous_ = true;
-    state_ = DRIVE;
+    // Re-arm through the hold state so the center servo can settle and a
+    // fresh, clear forward measurement is required before translation.
+    state_ = SENSOR_HOLD;
     servo_.write(SERVO_CENTER_DEG);
-    lastSonarStartMs_ = 0;
+    stateSinceMs_ = millis();
+    lastSonarStartMs_ = stateSinceMs_;
   }
 
   frontDistanceMm_ = 0;
@@ -125,7 +128,7 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
       turnDirection_ = static_cast<float>(decision.turnDirection);
       state_ = TURNING;
     } else {
-      // Neither side has enough verified clearance. Hold position and retry.
+      // Neither side has enough verified clearance. Hold; never reverse blind.
       state_ = SENSOR_HOLD;
       frontDistanceMm_ = 0;
       frontDistanceValid_ = false;
@@ -140,7 +143,8 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
     if (!valid) {
       state_ = SENSOR_HOLD;
       stateSinceMs_ = nowMs;
-    } else if (distance < OBSTACLE_STOP_MM) {
+    } else if (distance < OBSTACLE_CLEAR_MM) {
+      // The forward path is not yet proven clear; re-check the sides.
       startScan(nowMs);
     } else {
       state_ = DRIVE;
@@ -187,13 +191,14 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
 
     case TURNING:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= TURN_DURATION_MS) {
-        state_ = DRIVE;
+        // The sensor has been centered throughout the turn, but use the same
+        // guarded re-arm path to require a fresh center echo before cruising.
+        state_ = SENSOR_HOLD;
         stateSinceMs_ = nowMs;
         lastSonarStartMs_ = nowMs;
         frontDistanceMm_ = 0;
         frontDistanceValid_ = false;
         frontDistanceAtMs_ = 0;
-        // Wait for a fresh center reading before driving forward again.
         return {0.0f, 0.0f};
       }
       // Positive bias speeds the left wheel relative to the right: turn right.
@@ -201,6 +206,7 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
 
     case SENSOR_HOLD:
       if (!sonar_.busy() &&
+          static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS &&
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
         startSonar(nowUs, nowMs, SENSOR_HOLD_MEASURE);
       }
