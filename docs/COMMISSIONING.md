@@ -40,13 +40,13 @@ Do not infer polarity from wire colors; motor and encoder wiring varies.
 3. With wheels raised, use a temporary low-PWM motor test sketch to verify motor and encoder polarity.
 4. Put the wheels on the ground while holding the frame within 8 degrees of upright. Wait for valid pitch telemetry, then send 'b' to arm balance.
 5. Keep a hand near the physical power switch and release the frame only into the tethered test area.
-5. If it accelerates in the direction of the fall, immediately cut power. Reverse the balance sign / motor polarity only after verifying IMU sign and wheel direction.
-6. Tune the inner balance loop first:
+6. If it accelerates in the direction of the fall, immediately cut power. Reverse the balance sign / motor polarity only after verifying IMU sign and wheel direction.
+7. Tune the inner balance loop first:
    - Increase BALANCE_KP gradually until it responds strongly but begins to oscillate.
    - Back off slightly.
    - Increase BALANCE_KD to damp oscillation.
    - Keep BALANCE_KI at zero initially. Add only a small amount if a persistent bias remains after mechanical/IMU calibration.
-7. Tune the outer velocity loop after stable upright balancing:
+8. Tune the outer velocity loop after stable upright balancing:
    - Start with low VELOCITY_KP and VELOCITY_KI.
    - If it slowly drifts, verify encoder polarity and counts/revolution before changing gains.
    - Keep MAX_LEAN_DEG small while commissioning.

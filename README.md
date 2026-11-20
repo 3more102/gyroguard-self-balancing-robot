@@ -101,7 +101,7 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 
 ## First-use behavior
 
-- Autonomous movement is **disabled on boot**.
+- Motor control and autonomous movement are **disabled on boot**.
 - The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
 - The robot calibrates the IMU while it is held upright and stationary.
 - After calibration, motor outputs remain disabled.
