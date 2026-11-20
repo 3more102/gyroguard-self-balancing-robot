@@ -28,6 +28,17 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
           /tmp/gyroguard-imu-validation-test
 
+  model-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GNU Octave
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y octave
+      - name: Run Stage 2 model checks
+        run: octave --no-gui --quiet --eval "addpath('matlab'); gyroguard_stage2_analysis(false);"
+
   compile-avr-targets:
     runs-on: ubuntu-latest
     steps:

@@ -112,7 +112,7 @@ F_m\\
 \end{bmatrix}
 \]
 
-The second component is the equal-and-opposite reaction torque on the body. Omitting it produces a cart-pendulum approximation rather than the motor-driven wheeled-inverted-pendulum model.
+The second component is the equal-and-opposite reaction torque on the body. Omitting it produces a cart-pendulum approximation rather than the motor-driven wheeled-inverted-pendulum model. The analysis code checks this sign convention explicitly: positive wheel torque must produce a positive forward generalized force and a negative body-pitch generalized torque; zero-voltage back-EMF must oppose positive relative wheel motion.
 
 For compact notation, define
 
@@ -215,11 +215,12 @@ The script:
 
 1. Validates that the physical parameters are finite and within their admissible ranges.
 2. Builds the nonlinear equations and the linearized \(A\) and \(B\) matrices.
-3. Independently estimates the local Jacobians of the nonlinear state derivative using central finite differences and asserts agreement with \(A\) and \(B\).
-4. Computes the open-loop eigenvalues.
-5. Builds the controllability matrix and reports its rank.
-6. Simulates a small initial forward pitch with zero motor voltage, stopping at a 20-degree pitch limit.
-7. Compares nonlinear and linearized pitch responses.
+3. Checks the motor generalized-force signs: positive wheel torque drives the axle forward and applies the opposing torque to the body; back-EMF opposes positive relative wheel motion.
+4. Independently estimates the local Jacobians of the nonlinear state derivative using central finite differences and asserts agreement with \(A\) and \(B\).
+5. Computes the open-loop eigenvalues.
+6. Builds the controllability matrix and reports its rank.
+7. Simulates a small initial forward pitch with zero motor voltage, stopping at a 20-degree pitch limit.
+8. Compares nonlinear and linearized pitch responses.
 
 The script uses base MATLAB functions (including ode45, eig and rank); it does not require the Control System Toolbox. Pass false to gyroguard_stage2_analysis(false) to run the numerical checks without opening figures.
 
