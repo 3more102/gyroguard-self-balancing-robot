@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚖️ GyroGuard
+<img src="assets/gyroguard-banner.svg" alt="GyroGuard — Arduino-powered two-wheel self-balancing robot" width="100%">
 
 ### Stay upright. See ahead. Move with intent.
 
@@ -25,29 +25,8 @@ Once balance-only operation is stable, a scanning ultrasonic sensor adds a secon
 
 The interesting part is not simply making the robot move. It is coordinating estimation, feedback control, sensing, navigation, and fault handling on a resource-constrained 8-bit microcontroller.
 
-<div align="center">
 
-```text
-                    G Y R O G U A R D
-              ┌─────────────────────────┐
-              │   MPU-6050  ·  Arduino  │
-              │     Sense → Decide      │
-              └────────────┬────────────┘
-                           │
-                    ┌──────┴──────┐
-                    │  BALANCE    │
-                    │  CONTROLLER │
-                    └──────┬──────┘
-                       ┌───┴───┐
-                    __/         \__
-                  ( O )         ( O )
-                   LEFT         RIGHT
-                   WHEEL         WHEEL
-```
-
-<sub>Two driven wheels. One shared axle. No caster or third support wheel.</sub>
-
-</div>
+> **The mechanical rule:** two driven wheels on one shared axle. No caster. No third support wheel. The robot balances dynamically.
 
 > [!IMPORTANT]
 > **This is an engineering prototype, not a ready-to-drive product.** Initial gains and mechanical values are starting points, not proof of stability. Test with the wheels raised first, then use a tether or soft catch area. Keep an accessible physical power switch.
