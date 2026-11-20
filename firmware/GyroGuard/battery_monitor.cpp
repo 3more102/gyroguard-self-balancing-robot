@@ -47,6 +47,15 @@ bool BatteryMonitor::lowBattery() const {
   return initialized_ && lowBattery_;
 }
 
+bool BatteryMonitor::voltageValid() const {
+  return initialized_ && batteryVoltagePlausible(
+      filteredMillivolts_, BATTERY_MIN_VALID_MV, BATTERY_MAX_VALID_MV);
+}
+
+bool BatteryMonitor::travelInhibited() const {
+  return !voltageValid() || lowBattery_;
+}
+
 uint16_t BatteryMonitor::millivolts() const {
   return initialized_ ? filteredMillivolts_ : 0U;
 }
