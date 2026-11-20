@@ -2,5 +2,5 @@
 
 #include <stdint.h>
 
-// Captured from MCUSR before the AVR runtime clears or reinitializes state.
-extern uint8_t gyroguard_reset_cause;
+extern volatile uint8_t gyroguard_mcusr_reset_cause;
+extern volatile uint8_t gyroguard_bootloader_reset_cause;
