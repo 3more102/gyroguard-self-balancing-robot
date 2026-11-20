@@ -4,6 +4,10 @@
 #include <Wire.h>
 #include <math.h>
 
+#if !defined(WIRE_HAS_TIMEOUT)
+#error "GyroGuard requires Arduino AVR Boards core 1.8.6+ with Wire timeout support."
+#endif
+
 namespace {
 constexpr uint8_t REG_SMPLRT_DIV = 0x19;
 constexpr uint8_t REG_CONFIG = 0x1A;
@@ -21,6 +25,7 @@ bool MPU6050::begin() {
   initialized_ = false;
   filterInitialized_ = false;
   Wire.begin();
+  Wire.setWireTimeout(IMU_I2C_TIMEOUT_US, true);
   Wire.setClock(400000UL);
 
   uint8_t whoAmI = 0;
@@ -41,21 +46,34 @@ bool MPU6050::begin() {
 }
 
 bool MPU6050::writeRegister(uint8_t reg, uint8_t value) {
+  Wire.clearWireTimeoutFlag();
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(reg);
   Wire.write(value);
-  return Wire.endTransmission() == 0;
+  const uint8_t status = Wire.endTransmission();
+  const bool timedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  return status == 0 && !timedOut;
 }
 
 bool MPU6050::readRegisters(uint8_t firstReg, uint8_t *buffer, uint8_t length) {
+  Wire.clearWireTimeoutFlag();
   Wire.beginTransmission(MPU6050_ADDRESS);
   Wire.write(firstReg);
-  if (Wire.endTransmission(false) != 0) return false;
-  const uint8_t received = Wire.requestFrom(MPU6050_ADDRESS, length, (uint8_t)true);
-  if (received != length) {
+  const uint8_t txStatus = Wire.endTransmission(false);
+  const bool txTimedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (txStatus != 0 || txTimedOut) return false;
+
+  const uint8_t received =
+      Wire.requestFrom(MPU6050_ADDRESS, length, (uint8_t)true);
+  const bool rxTimedOut = Wire.getWireTimeoutFlag();
+  Wire.clearWireTimeoutFlag();
+  if (rxTimedOut || received != length) {
     while (Wire.available()) (void)Wire.read();
     return false;
   }
+
   for (uint8_t i = 0; i < length; ++i) {
     if (!Wire.available()) return false;
     buffer[i] = static_cast<uint8_t>(Wire.read());
