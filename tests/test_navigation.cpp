@@ -72,7 +72,8 @@ static void testObstacleScanAndTurnTowardClearerSide() {
   navigation.setAutonomous(true);
 
   NavigationCommand command = updateAt(navigation, SONAR_RETRY_MS);
-  assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
+  // Autonomous startup waits for a valid center range before moving.
+  assert(near(command.targetSpeedMmS, 0.0f));
   assert(sonarBusy);
 
   injectRange(250);
