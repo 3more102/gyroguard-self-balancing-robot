@@ -10,6 +10,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - TB6612FNG dual H-bridge driver
+- Fail-closed autonomous travel interlock for invalid or stale forward sonar data
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
 
@@ -49,6 +50,9 @@ Choose motors whose stall current is within the driver and battery limits. The T
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_navigation_safety.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -72,7 +76,7 @@ Arduino CLI example:
 - Autonomous movement is **disabled on boot**.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
-- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
+- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance. Forward travel remains inhibited until a fresh, valid front range is available.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
@@ -91,6 +95,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
 - A single forward scanner does not provide full 360-degree perception.
+- Invalid or stale forward sonar data blocks autonomous forward travel; it does not disable the balance controller.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
