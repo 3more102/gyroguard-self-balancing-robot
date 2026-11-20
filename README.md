@@ -56,13 +56,14 @@ Choose motors whose stall current is within the driver and battery limits. The T
 1. Install Arduino IDE 2.x or Arduino CLI.
 2. Open firmware/GyroGuard/GyroGuard.ino.
 3. Select **Arduino Uno** (or classic Nano with ATmega328P).
-4. Compile and upload. The sketch uses Arduino core libraries only: Wire and Servo. No external Arduino library is required.
+4. Compile and upload. The sketch uses Wire from the AVR core and the Servo library. Install Servo through Arduino IDE Library Manager or run arduino-cli lib install Servo.
 5. Read the hardware and commissioning guides before applying motor power.
 
 Arduino CLI example:
 
     arduino-cli core update-index
     arduino-cli core install arduino:avr
+    arduino-cli lib install Servo
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
     arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 
