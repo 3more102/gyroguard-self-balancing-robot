@@ -9,6 +9,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 3. With the battery disconnected, check all power rails and grounds.
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
+6. Compare batteryMv telemetry with a multimeter at the pack terminals; adjust BATTERY_ADC_REFERENCE_MV if needed.
 
 ## Stage 2 — Verify sensor orientation
 
@@ -60,6 +61,16 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries.
 8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
 9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+
+## Stage 6 — Verify low-battery travel inhibit
+
+1. Do not deeply discharge the Li-ion pack to test the threshold.
+2. With the wheels raised and a current-limited adjustable bench supply in place of the pack, lower the input until batteryMv reaches 6800 mV.
+3. Verify batteryLow=1, auto=0, and that the balance loop remains active.
+4. Raise the supply to at least 7000 mV and wait for the filtered reading to recover. The inhibit clears, but autonomous travel remains disabled until you send a again.
+5. Restore the protected 2S pack and confirm the battery telemetry agrees with a multimeter.
+
+Low voltage is a travel inhibit, not a motor power cut: the robot must retain balance control while you bring it to a safe stop and disconnect it physically.
 
 ## Serial commands
 
