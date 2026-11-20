@@ -5,33 +5,23 @@
 // turnDirection: -1 = left, +1 = right, 0 = no verified safe direction.
 struct NavigationDecision {
   int8_t turnDirection;
-  bool reverseFirst;
   bool valid;
 };
 
-// Unknown side readings are never interpreted as clear space. A single
-// measured side is usable only when it independently meets the clearance
-// threshold. If both sides are measured but blocked, reverse before turning
-// toward the side with the greater measured clearance.
+// Unknown side readings are never interpreted as clear space. A side is
+// selectable only when its measured range meets the clearance threshold.
+// If neither side is verified clear, hold; this robot has no rear sensor.
 inline NavigationDecision chooseNavigationDecision(
     bool leftValid, uint16_t leftMm, bool rightValid, uint16_t rightMm,
     uint16_t clearThresholdMm) {
-  if (!leftValid && !rightValid) return {0, false, false};
+  const bool leftClear = leftValid && leftMm >= clearThresholdMm;
+  const bool rightClear = rightValid && rightMm >= clearThresholdMm;
 
-  if (leftValid && !rightValid) {
-    return leftMm >= clearThresholdMm
-        ? NavigationDecision{-1, false, true}
-        : NavigationDecision{0, false, false};
-  }
+  if (!leftClear && !rightClear) return {0, false};
+  if (leftClear && !rightClear) return {-1, true};
+  if (!leftClear && rightClear) return {1, true};
 
-  if (!leftValid && rightValid) {
-    return rightMm >= clearThresholdMm
-        ? NavigationDecision{1, false, true}
-        : NavigationDecision{0, false, false};
-  }
-
-  const bool bothBlocked = leftMm < clearThresholdMm &&
-                           rightMm < clearThresholdMm;
-  const int8_t direction = leftMm > rightMm ? -1 : 1;
-  return {direction, bothBlocked, true};
+  // Both sides are clear: select the side with greater measured clearance.
+  // Equal readings use a deterministic right-turn tie break.
+  return {leftMm > rightMm ? -1 : 1, true};
 }
