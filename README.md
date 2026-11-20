@@ -98,7 +98,7 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - Autonomous movement is **disabled on boot**.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
-- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance. A low 2S pack reading blocks autonomous travel; balance remains active.
+- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance. A low or invalid 2S pack reading blocks autonomous travel; balance remains active.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
 - If neither side has verified clearance, the robot holds position and retries sensing; it does not reverse without rear sensing.
@@ -114,7 +114,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown, invalid or stale range readings inhibit translation instead of being interpreted as clear space. No reverse is commanded without rear sensing.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, battery millivolts and low-battery state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, battery millivolts, battery-sensor validity and low-battery state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
