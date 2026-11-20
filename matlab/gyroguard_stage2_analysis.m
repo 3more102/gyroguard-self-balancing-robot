@@ -21,6 +21,9 @@ validateParameters(p);
 
 [massEquivalent, bodyAxleInertia, motorForceGain, motorBackEmfDamping, ...
     effectiveDamping, rotorCrossInertia, determinant] = derivedParameters(p);
+uprightCoupling = p.bodyMass_kg * p.bodyComHeight_m + rotorCrossInertia;
+effectivePitchDamping = p.pitchDamping_NmsPerRad + ...
+    p.wheelRadius_m^2 * motorBackEmfDamping;
 
 [A, B] = linearizedModel(p);
 
@@ -60,9 +63,11 @@ if p.isIllustrative
 end
 fprintf('Equivalent wheel/rotor translational mass M: %.6f kg\n', massEquivalent);
 fprintf('Body and motor-rotor pitch inertia J: %.6f kg m^2\n', bodyAxleInertia);
+fprintf('Upright body/rotor coupling h0: %.6f kg m\n', uprightCoupling);
 fprintf('Motor force gain Ku: %.6f N/V\n', motorForceGain);
 fprintf('Motor back-EMF force coefficient Be: %.6f N s/m\n', motorBackEmfDamping);
 fprintf('Effective translational damping b: %.6f N s/m\n', effectiveDamping);
+fprintf('Effective pitch damping c_eff: %.6f N m s/rad\n', effectivePitchDamping);
 fprintf('Motor-rotor cross-inertia contribution: %.6f kg m\n', rotorCrossInertia);
 fprintf('Mass-matrix determinant at upright Delta: %.9f\n', determinant);
 fprintf('Maximum finite-difference error in A: %.3e\n', linearizationErrorA);
@@ -114,9 +119,11 @@ results.linearizationErrorA = linearizationErrorA;
 results.linearizationErrorB = linearizationErrorB;
 results.massEquivalent = massEquivalent;
 results.bodyAxleInertia = bodyAxleInertia;
+results.uprightCoupling = uprightCoupling;
 results.motorForceGain = motorForceGain;
 results.motorBackEmfDamping = motorBackEmfDamping;
 results.effectiveDamping = effectiveDamping;
+results.effectivePitchDamping = effectivePitchDamping;
 results.rotorCrossInertia = rotorCrossInertia;
 results.timeNonlinear = timeNonlinear;
 results.stateNonlinear = stateNonlinear;
