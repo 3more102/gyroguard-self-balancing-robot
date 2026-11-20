@@ -2,6 +2,7 @@
 #include <avr/wdt.h>
 #include "config.h"
 #include "watchdog_startup.h"
+#include "reset_policy.h"
 #include "arm_guard.h"
 #include "pid.h"
 #include "imu_mpu6050.h"
@@ -57,6 +58,7 @@ void latchFault(const __FlashStringHelper *reason) {
 
   // Remove motor torque before navigation updates or serial diagnostics.
   motors.disable();
+  gyroguard_clear_armed_marker();
   navigation.setAutonomous(false);
 
   if (firstFault) {
@@ -134,6 +136,7 @@ void readSerialCommands() {
         measuredSpeedMmS = 0.0f;
         previousCounts = encoders.snapshot();
         lastVelocityUs = micros();
+        gyroguard_mark_balance_armed();
         balanceArmed = true;
         printCommandResponse(F("BALANCE ARMED"), 16);
       } else {
@@ -146,6 +149,7 @@ void readSerialCommands() {
       velocityPid.reset();
       targetAngleDeg = 0.0f;
       motors.disable();
+      gyroguard_clear_armed_marker();
       printCommandResponse(F("DISARMED; support robot"), 28);
     } else if (command == 'a' || command == 'A') {
       if (faultLatched) {
@@ -225,13 +229,31 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   batteryMonitor.begin();
   batteryMonitor.update(millis());
-  if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
-    Serial.println(F("Previous reset cause: watchdog timeout; balance remains disarmed."));
-  }
+  const bool previousBalanceArmed = gyroguard_take_previous_armed_marker();
+  const uint8_t resetCause = gyroguard_reset_cause;
   encoders.begin();
   navigation.begin();
 
   Serial.println(F("\nGyroGuard boot"));
+  Serial.print(F("Previous reset flags: 0x"));
+  Serial.println(resetCause, HEX);
+  if (GyroGuardReset::requiresInspection(resetCause, previousBalanceArmed)) {
+    if (previousBalanceArmed) {
+      latchFault(F("Unexpected reset while balance was armed; inspect before re-arming"));
+    } else if (GyroGuardReset::isApplicationWatchdogReset(resetCause)) {
+      latchFault(F("Application watchdog reset; inspect robot before re-arming"));
+    } else if (GyroGuardReset::isBrownOutReset(resetCause)) {
+      latchFault(F("Brown-out reset; inspect battery and wiring before re-arming"));
+    }
+    return;
+  }
+
+#if defined(GYROGUARD_TEST_WATCHDOG_RESET)
+  // Bench-only: verifies that the .noinit armed marker survives a watchdog reset.
+  gyroguard_mark_balance_armed();
+  wdt_enable(WDTO_15MS);
+  while (true) {}
+#endif
   Serial.println(F("Keep robot upright and motionless during IMU calibration."));
 
   if (!imu.begin()) {
