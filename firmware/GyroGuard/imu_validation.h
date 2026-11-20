@@ -37,21 +37,30 @@ inline bool isMpu6050Identity(uint8_t whoAmI) {
 inline bool calibrationWindowIsStationary(
     const RunningStats &accelAngleDeg,
     const RunningStats &gyroRateDps,
+    const RunningStats &gyroMagnitudeDps,
     const RunningStats &accelMagnitudeG,
     float maxAccelAngleStdDeg,
+    float maxAbsAccelAngleDeg,
     float maxGyroRateStdDps,
+    float maxGyroMagnitudeDps,
     float minGravityG,
     float maxGravityG,
     float maxGravityStdG) {
   const uint16_t samples = accelAngleDeg.count();
   if (samples < 100U ||
       gyroRateDps.count() != samples ||
+      gyroMagnitudeDps.count() != samples ||
       accelMagnitudeG.count() != samples) {
     return false;
   }
 
-  if (accelAngleDeg.standardDeviation() > maxAccelAngleStdDeg ||
+  // Variance alone is insufficient: a stable but tilted or rotating robot
+  // could otherwise be mistaken for the upright, stationary calibration pose.
+  if (fabsf(accelAngleDeg.mean()) > maxAbsAccelAngleDeg ||
+      accelAngleDeg.standardDeviation() > maxAccelAngleStdDeg ||
       gyroRateDps.standardDeviation() > maxGyroRateStdDps ||
+      gyroMagnitudeDps.mean() > maxGyroMagnitudeDps ||
+      gyroMagnitudeDps.standardDeviation() > maxGyroRateStdDps ||
       accelMagnitudeG.standardDeviation() > maxGravityStdG) {
     return false;
   }
