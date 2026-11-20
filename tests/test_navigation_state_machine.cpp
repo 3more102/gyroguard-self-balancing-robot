@@ -206,6 +206,49 @@ static void testSideEchoIsDiscardedWhenAutonomyIsDisabled() {
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 }
 
+
+static void testSideEchoArrivingAfterRearmIsDiscarded() {
+  ObstacleAvoidance navigation;
+  fakeMillis = 0;
+  navigation.begin();
+  navigation.setAutonomous(true);
+
+  step(navigation, SERVO_SETTLE_MS);
+  injectRange(250, true);
+  step(navigation, SERVO_SETTLE_MS + 1);
+
+  const uint32_t sideMeasurementStarted =
+      SERVO_SETTLE_MS + 1 + SERVO_SETTLE_MS;
+  step(navigation, sideMeasurementStarted);
+  assert(sonarBusy); // The left-side echo is pending.
+
+  navigation.setAutonomous(false);
+  navigation.setAutonomous(true); // Re-arm before that side echo arrives.
+
+  injectRange(800, true); // A side result must not be accepted as a center result.
+  NavigationCommand command = step(navigation, sideMeasurementStarted + 1);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(!navigation.frontDistanceValid());
+  assert(!sonarBusy); // The controller is waiting for center-servo settling.
+
+  command = step(
+      navigation, sideMeasurementStarted + SERVO_SETTLE_MS - 1);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(!sonarBusy);
+
+  command = step(
+      navigation, sideMeasurementStarted + SERVO_SETTLE_MS);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(sonarBusy); // Only now may a new center measurement begin.
+
+  injectRange(900, true);
+  command = step(
+      navigation, sideMeasurementStarted + SERVO_SETTLE_MS + 1);
+  assert(navigation.frontDistanceValid());
+  assert(navigation.frontDistanceMm() == 900);
+  assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
+}
+
 static void testStaleForwardRangeStopsCruise() {
   ObstacleAvoidance navigation;
   fakeMillis = 0;
@@ -230,6 +273,7 @@ int main() {
   testTurnRequiresFreshSettledCenterReading();
   testBlockedSidesHoldAndCenterClearanceBelowThresholdRescans();
   testSideEchoIsDiscardedWhenAutonomyIsDisabled();
+  testSideEchoArrivingAfterRearmIsDiscarded();
   testStaleForwardRangeStopsCruise();
   return 0;
 }
