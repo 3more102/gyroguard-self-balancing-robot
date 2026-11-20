@@ -9,6 +9,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - PID input guards reject NaN/infinite sensor or timing values and reset controller state safely
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
+- 2S battery-voltage monitor; low or invalid readings inhibit autonomous travel while preserving active balance control
 - Encoder-motion watchdog for autonomous straight travel and differential turns
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
@@ -36,6 +37,7 @@ Exactly **two driven wheels**, one on each side, on the same axle. No caster or 
 | Range sensor | HC-SR04 |
 | Scanner | SG90 micro servo |
 | Battery | Protected 2-cell Li-ion pack (7.4 V nominal), sized for motor current |
+| Battery monitor | 10 kΩ / 10 kΩ divider, 100 nF filter capacitor, A2 input |
 | Logic supply | Regulated 5 V buck converter for Uno and sensors |
 | Chassis | Rigid two-wheel frame; IMU mounted close to the axle |
 
@@ -55,6 +57,8 @@ Choose motors whose stall current is within the driver and battery limits. The T
       encoder.h / encoder.cpp
       encoder_math.h
       motion_guard.h
+      battery_monitor.h / battery_monitor.cpp
+      battery_policy.h
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       sonar_math.h
@@ -82,6 +86,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_servo_center_settle.cpp
       test_balance_arming.cpp
       test_motion_guard.cpp
+      test_battery_policy.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -120,6 +125,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-arm-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
     /tmp/gyroguard-motion-guard-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
+    /tmp/gyroguard-battery-policy-test
 
 CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
@@ -134,6 +141,7 @@ CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and c
 - The center servo settles before forward ranging after startup, mode changes and scans.
 - Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing. The pitch sample must be no older than 15 ms.
 - Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
+- A low or invalid 2S pack reading blocks autonomous travel; the balance controller remains active and requires a fresh 'a' command after recovery.
 - During straight autonomous travel, both encoders must report motion within 750 ms; during a differential turn, at least one must report motion within 400 ms. A timeout inhibits autonomous travel and returns the velocity target to upright while balance remains active.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
@@ -151,7 +159,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown, invalid or stale range readings inhibit translation instead of being interpreted as clear space. No reverse is commanded without rear sensing.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, balance-armed state and encoder-fault state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The main serial record includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, balance-armed state and encoder-fault state. A separate 1 Hz record reports battery millivolts, sensor validity and low-battery status. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Stage 2 mathematical model
 
@@ -168,6 +176,7 @@ The default parameter set is illustrative, not measured. Replace it using docs/M
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed. A captured echo inside the nominal 30 mm near-field blind zone is treated as an obstruction, not a precise distance.
 - A single forward scanner does not provide full 360-degree perception or rear coverage.
+- Battery monitoring is a travel inhibit, not a battery-management system; retain a protected 2S pack/BMS and accessible physical power switch.
 - If neither side scan verifies sufficient clearance, the robot holds position and retries rather than reversing into an unobserved area.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - The encoder watchdog detects missing motion pulses, not every wiring, polarity or intermittent-count fault; verify both encoder channels during commissioning.

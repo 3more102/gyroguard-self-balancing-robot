@@ -10,6 +10,7 @@
 #include "motion_guard.h"
 #include "motor_driver.h"
 #include "obstacle_avoidance.h"
+#include "battery_monitor.h"
 #include <math.h>
 
 namespace {
@@ -17,6 +18,7 @@ MPU6050 imu;
 EncoderPair encoders;
 MotorDriver motors;
 ObstacleAvoidance navigation;
+BatteryMonitor batteryMonitor;
 
 PIDController balancePid(BALANCE_KP, BALANCE_KI, BALANCE_KD,
                          -BALANCE_OUTPUT_LIMIT, BALANCE_OUTPUT_LIMIT);
@@ -41,6 +43,7 @@ bool telemetryEnabled = true;
 uint32_t lastControlUs = 0;
 uint32_t lastVelocityUs = 0;
 uint32_t lastTelemetryMs = 0;
+uint32_t lastBatteryTelemetryMs = 0;
 float velocityLoopDt = 0.02f;
 EncoderSnapshot previousCounts{0, 0};
 MotionDemandMode previousMotionDemand = MOTION_DEMAND_NONE;
@@ -145,14 +148,18 @@ void readSerialCommands() {
       motors.disable();
       printCommandResponse(F("DISARMED; support robot"), 28);
     } else if (command == 'a' || command == 'A') {
-      if (!faultLatched && !encoderFaultLatched && balanceArmed) {
-        navigation.setAutonomous(true);
-        velocityPid.reset();
-        printCommandResponse(F("AUTO=1"), 8);
+      if (faultLatched) {
+        printCommandResponse(F("AUTO BLOCKED: fault"), 22);
       } else if (encoderFaultLatched) {
         printCommandResponse(F("AUTO BLOCKED: encoder fault; power-cycle"), 44);
       } else if (!balanceArmed) {
         printCommandResponse(F("ARM FIRST: send b"), 20);
+      } else if (batteryMonitor.travelInhibited()) {
+        printCommandResponse(F("AUTO BLOCKED: battery low/invalid"), 40);
+      } else {
+        navigation.setAutonomous(true);
+        velocityPid.reset();
+        printCommandResponse(F("AUTO=1"), 8);
       }
     } else if (command == 's' || command == 'S') {
       navigation.setAutonomous(false);
@@ -197,6 +204,18 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   Serial.print(F(",e=")); Serial.print(encoderFaultLatched ? 1 : 0);
   Serial.print(F(",f=")); Serial.println(faultLatched ? 1 : 0);
 }
+
+void printBatteryTelemetry(uint32_t nowMs) {
+  if (!telemetryEnabled ||
+      static_cast<uint32_t>(nowMs - lastBatteryTelemetryMs) < 1000UL) return;
+  // Keep the extra record short and non-blocking; the main control record
+  // retains its existing bounded 200 Hz loop UART budget.
+  if (Serial.availableForWrite() < 36) return;
+  lastBatteryTelemetryMs = nowMs;
+  Serial.print(F("batteryMv=")); Serial.print(batteryMonitor.millivolts());
+  Serial.print(F(",valid=")); Serial.print(batteryMonitor.voltageValid() ? 1 : 0);
+  Serial.print(F(",low=")); Serial.println(batteryMonitor.lowBattery() ? 1 : 0);
+}
 }
 
 void setup() {
@@ -204,6 +223,8 @@ void setup() {
   motors.begin();
   wdt_disable();
   Serial.begin(SERIAL_BAUD);
+  batteryMonitor.begin();
+  batteryMonitor.update(millis());
   if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
     Serial.println(F("Previous reset cause: watchdog timeout; balance remains disarmed."));
   }
@@ -229,6 +250,7 @@ void setup() {
   lastLeftEncoderMotionUs = lastControlUs;
   lastRightEncoderMotionUs = lastControlUs;
   lastTelemetryMs = millis();
+  lastBatteryTelemetryMs = millis();
 
   Serial.print(F("IMU zero angle: "));
   Serial.println(imuZeroAngleDeg, 3);
@@ -237,12 +259,25 @@ void setup() {
   Serial.println(F("IMU calibrated. Motor outputs remain disabled."));
   Serial.println(F("Wait for valid pitch telemetry, hold within 8 degrees of upright and nearly motionless, then send 'b'."));
   Serial.println(F("Send 'a' only after balance-only operation is stable."));
+  Serial.print(F("Battery monitor mV: "));
+  Serial.println(batteryMonitor.millivolts());
+  if (batteryMonitor.travelInhibited()) {
+    Serial.println(F("BATTERY INHIBIT: autonomous travel requires valid voltage and recovery above 7.0 V."));
+  }
 
   wdt_enable(WDTO_250MS);
 }
 
 void loop() {
   wdt_reset();
+  const uint32_t batteryNowMs = millis();
+  if (batteryMonitor.update(batteryNowMs) &&
+      batteryMonitor.travelInhibited() && navigation.autonomous()) {
+    navigation.setAutonomous(false);
+    velocityPid.reset();
+    targetAngleDeg = 0.0f;
+    printCommandResponse(F("BATTERY INHIBIT: travel disabled; balance active"), 52);
+  }
   readSerialCommands();
 
   if (faultLatched) {
@@ -288,6 +323,7 @@ void loop() {
     targetAngleDeg = 0.0f;
     motors.disable();
     printTelemetry(millis(), 0.0f);
+    printBatteryTelemetry(millis());
     return;
   }
 
@@ -354,4 +390,5 @@ void loop() {
     pendingEncoderFaultReason = nullptr;
   }
   printTelemetry(millis(), balanceCommand);
+  printBatteryTelemetry(millis());
 }

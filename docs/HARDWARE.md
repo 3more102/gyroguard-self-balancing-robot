@@ -13,6 +13,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 - 1 × SG90 micro servo and rigid sensor bracket
 - 1 × protected 2-cell Li-ion battery pack and compatible charger
 - 1 × regulated 5 V buck converter with sufficient current for logic and servo
+- 2 × 10 kΩ, 1% resistors and 1 × 100 nF capacitor for the battery divider
 - Chassis, motor mounts, switch, wiring, fasteners, a fuse and a 10 kΩ STBY pull-down resistor
 
 **Exactly two wheels:** mount one driven wheel on each side of the chassis, coaxial with one another. The robot balances dynamically on those two wheels. Do not add a caster during normal operation; a caster changes the dynamics and can hide balance problems.
@@ -37,6 +38,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | HC-SR04 TRIG | A0 |
 | HC-SR04 ECHO | A1 (PCINT9) |
 | SG90 signal | D9 |
+| Battery divider midpoint | A2 |
 
 Do not connect the HC-SR04 Echo to a different pin without changing the pin-change interrupt code. The Servo library reserves Timer1 on the Uno/Nano and disables hardware PWM on D9/D10 while attached; GyroGuard keeps motor PWM on D5/D6.
 
@@ -52,6 +54,20 @@ Do not connect the HC-SR04 Echo to a different pin without changing the pin-chan
 8. Connect a **10 kΩ pull-down resistor from TB6612 STBY (A3) to GND**, unless the exact breakout already has a verified pull-down. Inspect the module for any STBY pull-up before adding the resistor.
 
 Never connect a raw 2S battery directly to the Uno 5V pin. Do not connect a battery to Uno VIN unless the voltage is suitable for the board regulator; a 2S pack may not provide enough headroom for a stable 5 V rail.
+
+## 3.1. Battery-voltage monitor
+
+This divider is for the documented protected **2S pack only**:
+
+1. Connect switched battery positive (after the fuse and main switch) to a 10 kΩ, 1% resistor.
+2. Connect the other end of that resistor to Arduino A2.
+3. Connect a second 10 kΩ, 1% resistor from A2 to common ground.
+4. Add a 100 nF ceramic capacitor from A2 to ground, close to the Arduino.
+5. Verify with a multimeter that A2 is below 4.3 V with the pack fully charged (8.4 V).
+
+The equal-resistor divider halves the pack voltage: 8.4 V becomes 4.2 V at A2. **Never connect battery positive directly to A2.** Do not use this divider with a 3S or higher-voltage pack. The firmware assumes a 5.0 V ADC reference by default; measure the regulated 5 V rail and adjust BATTERY_ADC_REFERENCE_MV in config.h.
+
+Autonomous travel is inhibited at or below 6.8 V and remains inhibited until the filtered reading reaches at least 7.0 V. Readings below 5.0 V or above 9.0 V are invalid and also inhibit travel. This monitor does not cut motor power or replace cell-level protection; keep a proper 2S BMS/protected pack.
 
 ## 4. TB6612FNG connections and current limits
 
@@ -108,6 +124,6 @@ The sensor is scanned at center during travel, then left and right after an obst
 - Check there is no short between battery positive and ground.
 - Confirm the motor driver and motors are rated for the battery.
 - Confirm all grounds are common.
-- Verify the STBY pull-down and local driver decoupling are installed.
+- Verify the STBY pull-down, local driver decoupling and battery divider are installed; confirm A2 never sees raw pack voltage.
 - Raise the wheels off the bench for the first motor test.
 - Keep a hand on the physical power switch.
