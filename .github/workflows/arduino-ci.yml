@@ -55,6 +55,14 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes_battery tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test
           /tmp/gyroguard-battery-monitor-test
+      - name: Test watchdog reset policy and armed marker
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_reset_policy.cpp -o /tmp/gyroguard-reset-policy-test
+          /tmp/gyroguard-reset-policy-test
+      - name: Test encoder speed conversion
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_encoder_math.cpp -o /tmp/gyroguard-encoder-math-test
+          /tmp/gyroguard-encoder-math-test
 
   model-analysis:
     runs-on: ubuntu-latest
@@ -116,4 +124,5 @@ jobs:
           }
 
           check_build arduino:avr:uno
-          check_build arduino:avr:nano
+          check_build arduino:avr:nano:cpu=atmega328
+          check_build arduino:avr:nano:cpu=atmega328old
