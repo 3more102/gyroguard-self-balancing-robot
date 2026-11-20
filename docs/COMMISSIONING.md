@@ -7,8 +7,9 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
 2. Complete the wiring in HARDWARE.md.
 3. With the battery disconnected, check all power rails and grounds.
-4. Compile for Arduino Uno. Upload with the motor battery disconnected.
-5. Open Serial Monitor at 115200 baud.
+4. Install Arduino AVR Boards core 1.8.6 or newer so the Wire timeout API is available.
+5. Compile for Arduino Uno. Upload with the motor battery disconnected.
+6. Open Serial Monitor at 115200 baud.
 
 ## Stage 2 — Verify sensor identity and orientation
 
@@ -76,12 +77,13 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 ## Fault behavior
 
 The motor driver is disabled and the fault is latched if:
+- MPU-6050 identity verification fails or a bounded I2C transaction times out
 - IMU initialization or a runtime read fails
 - startup calibration is unstable or the sensor identity check fails
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+The PID controller also resets its integral/derivative history and returns zero if an input, time step or intermediate result is non-finite. An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
