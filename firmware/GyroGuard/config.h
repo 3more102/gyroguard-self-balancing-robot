@@ -51,6 +51,7 @@ constexpr float COMPLEMENTARY_ALPHA = 0.98f;
 constexpr float MAX_SAFE_TILT_DEG = 32.0f;
 constexpr float ARM_TILT_LIMIT_DEG = 8.0f;
 constexpr float ARM_RATE_LIMIT_DPS = 10.0f;
+constexpr uint32_t MAX_ARM_SAMPLE_AGE_US = 15000UL; // Three 200 Hz control periods.
 
 // Startup calibration acceptance limits. These are conservative firmware
 // thresholds, not MPU-6050 datasheet accuracy specifications.
