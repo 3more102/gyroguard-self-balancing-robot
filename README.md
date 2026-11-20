@@ -6,6 +6,8 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
 - MPU-6050 identity check and stationary-window startup calibration validation
+- Bounded MPU-6050 I2C transactions with a 10 ms Wire timeout
+- PID numerical guards that reset safely on non-finite inputs
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
@@ -56,6 +58,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+      WATCHDOG.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
@@ -66,15 +69,16 @@ Choose motors whose stall current is within the driver and battery limits. The T
 ## Build
 
 1. Install Arduino IDE 2.x or Arduino CLI.
-2. Open firmware/GyroGuard/GyroGuard.ino.
-3. Select **Arduino Uno** (or classic Nano with ATmega328P).
-4. Compile and upload. The sketch uses Wire from the AVR core and the Servo library. Install Servo through Arduino IDE Library Manager or run arduino-cli lib install Servo.
-5. Read the hardware and commissioning guides before applying motor power.
+2. Install **Arduino AVR Boards core 1.8.6 or newer**; the firmware requires its Wire timeout API.
+3. Open firmware/GyroGuard/GyroGuard.ino.
+4. Select **Arduino Uno** (or classic Nano with ATmega328P).
+5. Compile and upload. The sketch uses Wire from the AVR core and the Servo library. Install Servo through Arduino IDE Library Manager or run arduino-cli lib install Servo.
+6. Read the hardware and commissioning guides before applying motor power.
 
 Arduino CLI example:
 
     arduino-cli core update-index
-    arduino-cli core install arduino:avr
+    arduino-cli core install arduino:avr@1.8.6
     arduino-cli lib install Servo
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
     arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
