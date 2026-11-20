@@ -67,7 +67,7 @@ The equal-resistor divider halves the pack voltage: 8.4 V becomes 4.2 V at A2. *
 
 The default software threshold inhibits autonomous travel at or below 6.8 V and clears the inhibit only at or above 7.0 V. It does not cut motor power or stop the balance loop. Keep a proper 2S BMS/protected pack: this monitor is not a substitute for cell-level protection.
 
-## 4. TB6612FNG connections
+## 5. TB6612FNG connections
 
 - VCC → regulated 5 V logic
 - VM → motor battery positive
@@ -78,7 +78,7 @@ The default software threshold inhibits autonomous travel at or below 6.8 V and 
 
 Confirm the breakout's pin labels; board layouts differ. Check the motor stall current against the exact driver board's continuous and peak limits. Do not assume a module can safely drive any small DC motor.
 
-## 5. MPU-6050 mounting
+## 6. MPU-6050 mounting
 
 Mount the IMU rigidly on the chassis, close to the axle and away from motor vibration. For the default code orientation:
 
@@ -90,7 +90,7 @@ Mount the IMU rigidly on the chassis, close to the axle and away from motor vibr
 
 If your breakout axes or mounting differ, the pitch axis and sign in imu_mpu6050.cpp must be adapted. Do not try to fix a wrong IMU axis by randomly changing PID gains.
 
-## 6. Encoder wiring and calibration
+## 7. Encoder wiring and calibration
 
 Each encoder needs channel A and channel B. Connect encoder supply and ground according to the motor/encoder datasheet. Verify encoder output voltage is compatible with 5 V Arduino inputs; use level shifting if required.
 
@@ -102,7 +102,7 @@ Use the encoder manufacturer's definition carefully: some vendors quote counts a
 
 If forward wheel rotation gives negative speed, change the corresponding LEFT_ENCODER_SIGN or RIGHT_ENCODER_SIGN in config.h.
 
-## 7. Ultrasonic sensor and servo
+## 8. Ultrasonic sensor and servo
 
 Mount the HC-SR04 at the front, with a clear view and no frame parts in its beam. Attach it to the SG90 bracket. Verify the servo's physical left/right directions. If they are reversed, swap SERVO_LEFT_DEG and SERVO_RIGHT_DEG in config.h.
 
