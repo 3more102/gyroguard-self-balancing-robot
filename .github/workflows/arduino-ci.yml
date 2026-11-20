@@ -16,15 +16,26 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_pid.cpp firmware/GyroGuard/pid.cpp -o /tmp/gyroguard-pid-test
           /tmp/gyroguard-pid-test
 
-  compile-uno:
+  compile-avr:
+    name: Compile ${{ matrix.board }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: Arduino Uno
+            fqbn: arduino:avr:uno
+          - board: Arduino Nano (new bootloader)
+            fqbn: arduino:avr:nano:cpu=atmega328
+          - board: Arduino Nano (old bootloader)
+            fqbn: arduino:avr:nano:cpu=atmega328old
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
-      - name: Install AVR core
+      - name: Install AVR core and Servo library
         run: |
           arduino-cli core update-index
           arduino-cli core install arduino:avr
           arduino-cli lib install Servo
-      - name: Compile for Arduino Uno
-        run: arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
+      - name: Compile for ${{ matrix.board }}
+        run: arduino-cli compile --fqbn "${{ matrix.fqbn }}" firmware/GyroGuard
