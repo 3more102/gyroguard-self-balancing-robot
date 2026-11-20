@@ -10,6 +10,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown sensor data never authorizes forward motion or an unverified turn
+- 2S battery-voltage monitor; low voltage inhibits autonomous travel while preserving the balance loop
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
@@ -31,6 +32,7 @@ Exactly **two driven wheels**, one on each side, on the same axle. No caster or 
 | Range sensor | HC-SR04 |
 | Scanner | SG90 micro servo |
 | Battery | Protected 2-cell Li-ion pack (7.4 V nominal), sized for motor current |
+| Battery monitor | 10 kΩ / 10 kΩ divider and 100 nF filter capacitor to A2 |
 | Logic supply | Regulated 5 V buck converter for Uno and sensors |
 | Chassis | Rigid two-wheel frame; IMU mounted close to the axle |
 
@@ -47,6 +49,8 @@ Choose motors whose stall current is within the driver and battery limits. The T
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       navigation_policy.h
+      battery_monitor.h / battery_monitor.cpp
+      battery_policy.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
@@ -55,6 +59,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
+      test_battery_policy.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -79,6 +84,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-pid-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
     /tmp/gyroguard-navigation-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
+    /tmp/gyroguard-battery-policy-test
 
 CI runs both host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
@@ -87,7 +94,7 @@ CI runs both host test suites and compiles the Uno and classic Nano targets. It 
 - Autonomous movement is **disabled on boot**.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
-- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
+- Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance. A low 2S pack reading blocks autonomous travel; balance remains active.
 - Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
 - Send 's' to request zero forward speed while keeping balance active.
@@ -102,12 +109,13 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown or invalid range readings inhibit translation instead of being interpreted as clear space.
 
-The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range, battery millivolts and low-battery state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
 - A single forward scanner does not provide full 360-degree perception.
+- Battery monitoring is a travel inhibit, not a battery-management system; retain a protected pack/BMS and accessible physical power switch.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
