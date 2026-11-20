@@ -4,9 +4,11 @@ GyroGuard targets the ATmega328P used by the Arduino Uno R3 and classic Nano.
 
 ## Why early startup handling is required
 
-On this AVR family, a watchdog system reset does not necessarily disable the watchdog. After a watchdog reset, it can remain active at its fastest prescaler. If firmware waits until Arduino `setup()` to disable it, the bootloader and runtime startup may consume the remaining watchdog interval and cause another reset before the application starts.
+After a watchdog system reset, the watchdog may remain enabled at its fastest prescaler. If the sketch waits until Arduino `setup()` to disable it, the application's C-runtime startup can consume the remaining watchdog interval and trigger another reset before `setup()` runs.
 
-AVR-libc therefore recommends clearing the reset status and disabling the watchdog in the early `.init3` startup section.
+The `.init3` hook runs after the bootloader has transferred control to the sketch, but before normal application initialization and C++ global constructors. It disables the watchdog early enough to protect the sketch's startup sequence.
+
+**Important bootloader boundary:** `.init3` does not execute before or during bootloader code. If the watchdog can time out while the bootloader is running, that bootloader must itself disable or safely manage the watchdog. Verify the exact bootloader installed on the Uno/Nano being used; bootloader variants are not interchangeable for this behavior.
 
 ## Implementation
 

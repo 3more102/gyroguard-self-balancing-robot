@@ -7,7 +7,7 @@
 uint8_t gyroguard_reset_cause __attribute__((section(".noinit")));
 
 // ATmega328P keeps the watchdog active after a watchdog system reset.
-// Disable it before the bootloader/application startup can time out again.
+// Disable it before application C-runtime initialization and setup() can time out again.
 __attribute__((used, unused, naked, section(".init3")))
 static void gyroguard_early_watchdog_init(void) {
   gyroguard_reset_cause = MCUSR;
