@@ -46,9 +46,13 @@ Choose motors whose stall current is within the driver and battery limits. The T
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       obstacle_avoidance.h / obstacle_avoidance.cpp
+      navigation_logic.h
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_navigation_logic.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -73,6 +77,8 @@ Arduino CLI example:
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
+- Autonomous forward motion waits for a fresh, valid centre range measurement. Missing, too-close, stale or out-of-range readings hold travel at zero while balance remains active.
+- A turn is commanded only after both side measurements are valid and at least one side meets the configured clearance. If the scan is uncertain, the robot remains stationary and retries the centre measurement; it does not blindly reverse.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
@@ -92,6 +98,7 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
 - A single forward scanner does not provide full 360-degree perception.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
+- Invalid or uncertain range measurements inhibit forward travel; the robot does not assume an unmeasured direction is clear.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
 
