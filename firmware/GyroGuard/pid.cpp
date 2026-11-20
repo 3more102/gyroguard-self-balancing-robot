@@ -16,7 +16,9 @@ void PIDController::reset() {
 float PIDController::update(float error, float dtSeconds,
                             float derivativeMeasurement,
                             bool useDerivativeMeasurement) {
-  if (!isfinite(error) || !isfinite(dtSeconds) ||
+  if (!isfinite(kp_) || !isfinite(ki_) || !isfinite(kd_) ||
+      !isfinite(outputMin_) || !isfinite(outputMax_) ||
+      outputMin_ > outputMax_ || !isfinite(error) || !isfinite(dtSeconds) ||
       !(dtSeconds > 0.0f) || dtSeconds > 0.1f ||
       (useDerivativeMeasurement && !isfinite(derivativeMeasurement))) {
     reset();
@@ -29,10 +31,24 @@ float PIDController::update(float error, float dtSeconds,
   } else if (hasPrevious_) {
     derivative = (error - previousError_) / dtSeconds;
   }
+  if (!isfinite(derivative)) {
+    reset();
+    return 0.0f;
+  }
 
   const float candidateIntegral = integral_ + error * dtSeconds;
+  if (!isfinite(candidateIntegral)) {
+    reset();
+    return 0.0f;
+  }
+
   const float candidateOutput = kp_ * error + ki_ * candidateIntegral
                               + kd_ * derivative;
+  if (!isfinite(candidateOutput)) {
+    reset();
+    return 0.0f;
+  }
+
   const bool pushesHigh = candidateOutput > outputMax_ && error > 0.0f;
   const bool pushesLow = candidateOutput < outputMin_ && error < 0.0f;
   if (!pushesHigh && !pushesLow) integral_ = candidateIntegral;
@@ -41,6 +57,10 @@ float PIDController::update(float error, float dtSeconds,
   hasPrevious_ = true;
 
   const float output = kp_ * error + ki_ * integral_ + kd_ * derivative;
+  if (!isfinite(output)) {
+    reset();
+    return 0.0f;
+  }
   if (output > outputMax_) return outputMax_;
   if (output < outputMin_) return outputMin_;
   return output;
