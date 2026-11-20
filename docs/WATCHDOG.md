@@ -25,7 +25,7 @@ The `wdt_disable()` call in `setup()` is retained as a defensive, harmless secon
 
 ## Hardware safety
 
-The watchdog hook recovers the MCU; it does not replace a hardware motor-disable path. The TB6612FNG STBY input must remain low while the MCU is resetting. Check the exact motor-driver breakout for added pull-ups or other circuitry, and verify that the driver is in standby before connecting the motors.
+The watchdog hook recovers the MCU; it does not replace a hardware motor-disable path. The TB6612FNG STBY input must remain low while the MCU is resetting. Check the exact motor-driver breakout for added pull-ups or other circuitry. If the module has no verified STBY pull-down, add an external 10 kΩ resistor from STBY to GND; do not add it blindly if the breakout already pulls STBY high. Verify the driver remains in standby during reset before connecting the motors.
 
 ## Validation
 
