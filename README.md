@@ -52,6 +52,12 @@ Choose motors whose stall current is within the driver and battery limits. The T
       HARDWARE.md
       COMMISSIONING.md
       RESOURCE_BUDGETS.md
+      MATHEMATICAL_MODEL.md
+      MEASUREMENT_WORKSHEET.md
+    matlab/
+      gyroguard_parameters.m
+      gyroguard_stage2_analysis.m
+      README.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
@@ -103,6 +109,17 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown or invalid range readings inhibit translation instead of being interpreted as clear space.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
+
+## Stage 2 mathematical model
+
+The repository includes a parameterized sagittal-plane inverted-pendulum model and a MATLAB/Octave analysis script. It derives the linearized state-space model, checks the linearization against the nonlinear equations using finite differences, reports open-loop poles and controllability, and simulates the unpowered fall response.
+
+Run from the repository root:
+
+    addpath('matlab');
+    results = gyroguard_stage2_analysis;
+
+The default parameter set is explicitly illustrative because the final motor, mass, centre-of-mass and inertia measurements have not yet been entered. Replace those values using docs/MEASUREMENT_WORKSHEET.md before treating numerical results as results for the physical robot. See docs/MATHEMATICAL_MODEL.md for the assumptions and derivation.
 
 ## Safety and limitations
 
