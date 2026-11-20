@@ -14,10 +14,10 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 
 1. Keep motor power disconnected or wheels safely raised.
 2. Hold the robot upright and motionless during startup calibration (about 3 seconds).
-3. The 500-sample calibration checks pitch variation, gyro-rate variation and acceleration magnitude. It rejects excessive motion, vibration or implausible acceleration.
+3. The 500-sample calibration checks upright angle, pitch variation, gyro-rate variation and acceleration magnitude. It rejects a chassis tilted more than 10 degrees from upright, excessive motion, vibration or implausible acceleration.
 4. Watch the reported pitch telemetry after calibration.
 5. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
-6. If calibration is rejected, secure the chassis, isolate motor power, check IMU mounting and wiring, then power-cycle and retry.
+6. If calibration is rejected, secure the chassis, isolate motor power, check IMU mounting and wiring, then power-cycle and retry. If the IMU is intentionally mounted with a known offset, verify that offset before changing IMU_CALIBRATION_MAX_ABS_PITCH_DEG.
 7. If pitch direction is wrong, correct the IMU orientation/axis mapping before continuing.
 
 The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
@@ -74,7 +74,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 
 The motor driver is disabled and the fault is latched if:
 - IMU initialization or a runtime read fails
-- IMU startup calibration detects excessive movement, vibration or implausible acceleration
+- IMU startup calibration detects a non-upright posture, excessive movement, vibration or implausible acceleration
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 

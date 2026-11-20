@@ -47,7 +47,8 @@ constexpr uint32_t MAX_CONTROL_GAP_US = 20000UL;
 // MPU-6050
 constexpr uint8_t MPU6050_ADDRESS = 0x68; // AD0 low; use 0x69 if AD0 high
 constexpr uint16_t IMU_CALIBRATION_SAMPLES = 500;
-// Startup calibration rejects motion/vibration and implausible acceleration.
+// Startup calibration rejects non-upright posture, motion/vibration and bad acceleration.
+constexpr float IMU_CALIBRATION_MAX_ABS_PITCH_DEG = 10.0f;
 constexpr float IMU_CALIBRATION_MAX_PITCH_STD_DEG = 1.25f;
 constexpr float IMU_CALIBRATION_MAX_GYRO_STD_DPS = 1.50f;
 constexpr float IMU_CALIBRATION_MIN_ACCEL_NORM_G = 0.80f;

@@ -17,7 +17,7 @@ int main() {
   assert(pitch.count() == 500UL);
   assert(fabsf(pitch.mean() - 0.25f) < 1.0e-4f);
   assert(isStationaryCalibration(pitch, gyro, accelMagnitude,
-                                 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+                                 10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
 
   RunningStats movingPitch;
   RunningStats stableGyro;
@@ -28,7 +28,7 @@ int main() {
     stableAccel.add(1.0f);
   }
   assert(!isStationaryCalibration(movingPitch, stableGyro, stableAccel,
-                                  1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+                                  10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
 
   RunningStats stablePitch;
   RunningStats stableGyro2;
@@ -39,7 +39,7 @@ int main() {
     lowAccel.add(0.50f);
   }
   assert(!isStationaryCalibration(stablePitch, stableGyro2, lowAccel,
-                                  1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+                                  10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
 
   RunningStats stablePitch2;
   RunningStats stableGyro3;
@@ -50,11 +50,34 @@ int main() {
     noisyAccel.add((i % 2 == 0) ? 0.70f : 1.30f);
   }
   assert(!isStationaryCalibration(stablePitch2, stableGyro3, noisyAccel,
-                                  1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+                                  10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+
+
+  RunningStats tiltedPitch;
+  RunningStats stableGyro4;
+  RunningStats stableAccel2;
+  for (int i = 0; i < 500; ++i) {
+    tiltedPitch.add(15.0f);
+    stableGyro4.add(0.0f);
+    stableAccel2.add(1.0f);
+  }
+  assert(!isStationaryCalibration(tiltedPitch, stableGyro4, stableAccel2,
+                                  10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+
+  RunningStats stablePitch3;
+  RunningStats noisyGyro;
+  RunningStats stableAccel3;
+  for (int i = 0; i < 500; ++i) {
+    stablePitch3.add(0.0f);
+    noisyGyro.add((i % 2 == 0) ? -3.0f : 3.0f);
+    stableAccel3.add(1.0f);
+  }
+  assert(!isStationaryCalibration(stablePitch3, noisyGyro, stableAccel3,
+                                  10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
 
   RunningStats insufficient;
   insufficient.add(0.0f);
   assert(!isStationaryCalibration(insufficient, insufficient, insufficient,
-                                  1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
+                                  10.0f, 1.25f, 1.50f, 0.80f, 1.20f, 0.08f));
   return 0;
 }

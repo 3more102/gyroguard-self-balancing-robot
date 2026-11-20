@@ -101,6 +101,7 @@ bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
 
   if (!isStationaryCalibration(
           angleStats, gyroStats, accelMagnitudeStats,
+          IMU_CALIBRATION_MAX_ABS_PITCH_DEG,
           IMU_CALIBRATION_MAX_PITCH_STD_DEG,
           IMU_CALIBRATION_MAX_GYRO_STD_DPS,
           IMU_CALIBRATION_MIN_ACCEL_NORM_G,

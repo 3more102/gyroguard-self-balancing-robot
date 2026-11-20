@@ -40,6 +40,7 @@ inline bool isStationaryCalibration(
     const RunningStats &pitchAngle,
     const RunningStats &gyroRate,
     const RunningStats &accelMagnitudeG,
+    float maxAbsPitchMeanDeg,
     float maxPitchStdDeg,
     float maxGyroStdDps,
     float minAccelNormG,
@@ -50,7 +51,8 @@ inline bool isStationaryCalibration(
     return false;
   }
 
-  return pitchAngle.standardDeviation() <= maxPitchStdDeg &&
+  return fabsf(pitchAngle.mean()) <= maxAbsPitchMeanDeg &&
+         pitchAngle.standardDeviation() <= maxPitchStdDeg &&
          gyroRate.standardDeviation() <= maxGyroStdDps &&
          accelMagnitudeG.mean() >= minAccelNormG &&
          accelMagnitudeG.mean() <= maxAccelNormG &&
