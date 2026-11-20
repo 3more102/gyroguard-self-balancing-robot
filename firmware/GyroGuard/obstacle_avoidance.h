@@ -39,6 +39,7 @@ private:
   bool autonomous_;
   uint32_t stateSinceMs_;
   uint32_t lastSonarStartMs_;
+  uint32_t lastFrontMeasurementMs_;
   uint16_t leftDistanceMm_;
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
