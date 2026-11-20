@@ -1,5 +1,6 @@
 #include "imu_mpu6050.h"
 #include "config.h"
+#include "imu_validation.h"
 #include <Wire.h>
 #include <math.h>
 
@@ -10,7 +11,9 @@ constexpr uint8_t REG_GYRO_CONFIG = 0x1B;
 constexpr uint8_t REG_ACCEL_CONFIG = 0x1C;
 constexpr uint8_t REG_ACCEL_XOUT_H = 0x3B;
 constexpr uint8_t REG_PWR_MGMT_1 = 0x6B;
+constexpr uint8_t REG_WHO_AM_I = 0x75;
 constexpr float GYRO_LSB_PER_DPS = 131.0f;
+constexpr float ACCEL_LSB_PER_G = 16384.0f;
 constexpr float RAD_TO_DEG_F = 57.2957795f;
 }
 
@@ -19,11 +22,18 @@ bool MPU6050::begin() {
   filterInitialized_ = false;
   Wire.begin();
   Wire.setClock(400000UL);
+
+  uint8_t whoAmI = 0;
+  if (!readRegisters(REG_WHO_AM_I, &whoAmI, 1) ||
+      !isMpu6050Identity(whoAmI)) {
+    return false;
+  }
+
   if (!writeRegister(REG_PWR_MGMT_1, 0x01)) return false;
   delay(50);
-  if (!writeRegister(REG_CONFIG, 0x03)) return false;       // DLPF ~44/42 Hz
-  if (!writeRegister(REG_SMPLRT_DIV, 0x04)) return false;   // 200 Hz
-  if (!writeRegister(REG_GYRO_CONFIG, 0x00)) return false;  // +/-250 deg/s
+  if (!writeRegister(REG_CONFIG, 0x03)) return false;        // DLPF ~44/42 Hz
+  if (!writeRegister(REG_SMPLRT_DIV, 0x04)) return false;    // 200 Hz
+  if (!writeRegister(REG_GYRO_CONFIG, 0x00)) return false;   // +/-250 deg/s
   if (!writeRegister(REG_ACCEL_CONFIG, 0x00)) return false; // +/-2 g
   delay(20);
   initialized_ = true;
@@ -68,22 +78,43 @@ bool MPU6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gx,
 
 bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
                         float &gyroBiasDps) {
-  if (!initialized_ || samples < 100) return false;
-  float angleSum = 0.0f;
-  float gyroSum = 0.0f;
+  if (!initialized_ || samples < 100U) return false;
+
+  RunningStats accelAngleStats;
+  RunningStats gyroRateStats;
+  RunningStats accelMagnitudeStats;
 
   for (uint16_t i = 0; i < samples; ++i) {
     int16_t ax, ay, az, gx, gy, gz;
     if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
-    const float accelAngle = atan2f(-static_cast<float>(ax),
-                                    static_cast<float>(az)) * RAD_TO_DEG_F;
-    angleSum += accelAngle;
-    gyroSum += static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+
+    const float axG = static_cast<float>(ax);
+    const float ayG = static_cast<float>(ay);
+    const float azG = static_cast<float>(az);
+    const float accelAngle =
+        atan2f(-axG, azG) * RAD_TO_DEG_F;
+    const float gyroRate = static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    const float accelMagnitudeG =
+        sqrtf(axG * axG + ayG * ayG + azG * azG) / ACCEL_LSB_PER_G;
+
+    accelAngleStats.add(accelAngle);
+    gyroRateStats.add(gyroRate);
+    accelMagnitudeStats.add(accelMagnitudeG);
     delay(5);
   }
 
-  zeroAngleDeg = angleSum / static_cast<float>(samples);
-  gyroBiasDps = gyroSum / static_cast<float>(samples);
+  if (!calibrationWindowIsStationary(
+          accelAngleStats, gyroRateStats, accelMagnitudeStats,
+          IMU_CAL_MAX_ACCEL_ANGLE_STD_DEG,
+          IMU_CAL_MAX_GYRO_RATE_STD_DPS,
+          IMU_CAL_MIN_GRAVITY_G,
+          IMU_CAL_MAX_GRAVITY_G,
+          IMU_CAL_MAX_GRAVITY_STD_G)) {
+    return false;
+  }
+
+  zeroAngleDeg = accelAngleStats.mean();
+  gyroBiasDps = gyroRateStats.mean();
   filteredPitchDeg_ = 0.0f;
   filterInitialized_ = true;
   return true;

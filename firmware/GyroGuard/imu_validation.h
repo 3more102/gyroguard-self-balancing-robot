@@ -1,0 +1,61 @@
+#pragma once
+
+#include <math.h>
+#include <stdint.h>
+
+class RunningStats {
+public:
+  RunningStats() : count_(0), mean_(0.0f), sumSquares_(0.0f) {}
+
+  void add(float value) {
+    ++count_;
+    const float delta = value - mean_;
+    mean_ += delta / static_cast<float>(count_);
+    const float deltaAfter = value - mean_;
+    sumSquares_ += delta * deltaAfter;
+  }
+
+  uint16_t count() const { return count_; }
+  float mean() const { return mean_; }
+
+  float standardDeviation() const {
+    if (count_ < 2U) return 0.0f;
+    return sqrtf(sumSquares_ / static_cast<float>(count_ - 1U));
+  }
+
+private:
+  uint16_t count_;
+  float mean_;
+  float sumSquares_;
+};
+
+inline bool isMpu6050Identity(uint8_t whoAmI) {
+  // WHO_AM_I bits [6:1] contain the MPU-6050 I2C address (0x68).
+  return (whoAmI & 0x7EU) == 0x68U;
+}
+
+inline bool calibrationWindowIsStationary(
+    const RunningStats &accelAngleDeg,
+    const RunningStats &gyroRateDps,
+    const RunningStats &accelMagnitudeG,
+    float maxAccelAngleStdDeg,
+    float maxGyroRateStdDps,
+    float minGravityG,
+    float maxGravityG,
+    float maxGravityStdG) {
+  const uint16_t samples = accelAngleDeg.count();
+  if (samples < 100U ||
+      gyroRateDps.count() != samples ||
+      accelMagnitudeG.count() != samples) {
+    return false;
+  }
+
+  if (accelAngleDeg.standardDeviation() > maxAccelAngleStdDeg ||
+      gyroRateDps.standardDeviation() > maxGyroRateStdDps ||
+      accelMagnitudeG.standardDeviation() > maxGravityStdG) {
+    return false;
+  }
+
+  const float meanGravityG = accelMagnitudeG.mean();
+  return meanGravityG >= minGravityG && meanGravityG <= maxGravityG;
+}
