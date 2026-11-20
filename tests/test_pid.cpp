@@ -46,15 +46,22 @@ int main() {
 
   const float nan = std::numeric_limits<float>::quiet_NaN();
   const float infinity = std::numeric_limits<float>::infinity();
+
+  // Non-finite inputs and invalid sample times reset controller state.
   PIDController invalidInput(0.0f, 1.0f, 0.0f, -5.0f, 5.0f);
   assert(near(invalidInput.update(2.0f, 0.05f), 0.1f));
   assert(near(invalidInput.update(nan, 0.05f), 0.0f));
   assert(near(invalidInput.update(0.0f, 0.05f), 0.0f));
   assert(near(invalidInput.update(infinity, 0.05f), 0.0f));
+  assert(near(invalidInput.update(1.0f, nan), 0.0f));
 
   PIDController invalidDerivative(0.0f, 0.0f, 1.0f, -10.0f, 10.0f);
   assert(near(invalidDerivative.update(0.0f, 0.01f, nan, true), 0.0f));
   assert(near(invalidDerivative.update(0.0f, 0.01f, 1.5f, true), 1.5f));
+
+  // Finite inputs can still overflow intermediate PID arithmetic.
+  PIDController overflow(1.0e30f, 0.0f, 0.0f, -1.0e30f, 1.0e30f);
+  assert(near(overflow.update(1.0e30f, 0.02f), 0.0f));
 
   return 0;
 }
