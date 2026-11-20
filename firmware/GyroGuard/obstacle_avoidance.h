@@ -26,7 +26,9 @@ private:
     SCAN_RIGHT_SETTLE,
     SCAN_RIGHT_MEASURE,
     TURNING,
-    REVERSING
+    REVERSING,
+    SENSOR_HOLD,
+    SENSOR_HOLD_MEASURE
   };
 
   void startScan(uint32_t nowMs);
@@ -43,7 +45,8 @@ private:
   uint16_t rightDistanceMm_;
   uint16_t frontDistanceMm_;
   bool frontDistanceValid_;
-  bool haveLeft_;
-  bool haveRight_;
+  bool leftValid_;
+  bool rightValid_;
+  bool ignoreNextSonarResult_;
   float turnDirection_;
 };

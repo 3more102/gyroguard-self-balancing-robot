@@ -34,8 +34,8 @@ private:
   float m2_;
 };
 
-// Reject startup calibration if the chassis moved, vibrated heavily, or the
-// accelerometer magnitude is inconsistent with a stationary 1 g measurement.
+// Reject startup calibration if the chassis is not upright or stationary, or
+// the accelerometer magnitude is inconsistent with a stationary 1 g measurement.
 inline bool isStationaryCalibration(
     const RunningStats &pitchAngle,
     const RunningStats &gyroRate,

@@ -17,7 +17,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 3. The 500-sample calibration checks upright angle, pitch variation, gyro-rate variation and acceleration magnitude. It rejects a chassis tilted more than 10 degrees from upright, excessive motion, vibration or implausible acceleration.
 4. Watch the reported pitch telemetry after calibration.
 5. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
-6. If calibration is rejected, secure the chassis, isolate motor power, check IMU mounting and wiring, then power-cycle and retry. If the IMU is intentionally mounted with a known offset, verify that offset before changing IMU_CALIBRATION_MAX_ABS_PITCH_DEG.
+6. If calibration is rejected, secure the chassis, isolate motor power, check IMU mounting and wiring, then power-cycle and retry. If the IMU has a known mounting offset, verify it before changing IMU_CALIBRATION_MAX_ABS_PITCH_DEG.
 7. If pitch direction is wrong, correct the IMU orientation/axis mapping before continuing.
 
 The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
@@ -57,9 +57,11 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward the side with more measured clearance.
-6. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
-7. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+5. Send a only after balance-only operation is stable. The robot will not drive autonomously until it has a valid forward-range measurement.
+6. Confirm that an invalid forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
+7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries.
+8. After a turn, forward travel remains disabled until a fresh center measurement confirms clearance.
+9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
@@ -78,7 +80,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-After a fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+An invalid ultrasonic measurement is handled separately: autonomous translation is held at zero, but the balance loop remains active while the sensor is retried. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
