@@ -8,6 +8,7 @@
 #include "encoder.h"
 #include "encoder_math.h"
 #include "motion_guard.h"
+#include "battery_monitor.h"
 #include "motor_driver.h"
 #include "obstacle_avoidance.h"
 #include <math.h>
@@ -17,6 +18,7 @@ MPU6050 imu;
 EncoderPair encoders;
 MotorDriver motors;
 ObstacleAvoidance navigation;
+BatteryMonitor batteryMonitor;
 
 PIDController balancePid(BALANCE_KP, BALANCE_KI, BALANCE_KD,
                          -BALANCE_OUTPUT_LIMIT, BALANCE_OUTPUT_LIMIT);
@@ -37,10 +39,12 @@ bool balanceArmed = false;
 bool pitchValid = false;
 uint32_t lastPitchSampleUs = 0;
 bool telemetryEnabled = true;
+bool batteryTravelInhibitMessagePending = false;
 
 uint32_t lastControlUs = 0;
 uint32_t lastVelocityUs = 0;
 uint32_t lastTelemetryMs = 0;
+uint32_t lastBatteryTelemetryMs = 0;
 float velocityLoopDt = 0.02f;
 EncoderSnapshot previousCounts{0, 0};
 MotionDemandMode previousMotionDemand = MOTION_DEMAND_NONE;
@@ -102,6 +106,23 @@ void printCommandResponse(const __FlashStringHelper *message,
   }
 }
 
+void updateBatterySafety(uint32_t nowMs) {
+  batteryMonitor.update(nowMs);
+  if (batteryMonitor.travelInhibited() && navigation.autonomous()) {
+    navigation.setAutonomous(false);
+    velocityPid.reset();
+    targetAngleDeg = 0.0f;
+    batteryTravelInhibitMessagePending = true;
+  }
+}
+
+void printBatteryInhibitMessage() {
+  if (batteryTravelInhibitMessagePending && Serial.availableForWrite() >= 32) {
+    Serial.println(F("BATTERY: travel inhibited"));
+    batteryTravelInhibitMessagePending = false;
+  }
+}
+
 void readSerialCommands() {
   while (Serial.available() > 0) {
     const char command = static_cast<char>(Serial.read());
@@ -145,7 +166,9 @@ void readSerialCommands() {
       motors.disable();
       printCommandResponse(F("DISARMED; support robot"), 28);
     } else if (command == 'a' || command == 'A') {
-      if (!faultLatched && !encoderFaultLatched && balanceArmed) {
+      if (batteryMonitor.travelInhibited()) {
+        printCommandResponse(F("AUTO BLOCKED: battery low/invalid"), 40);
+      } else if (!faultLatched && !encoderFaultLatched && balanceArmed) {
         navigation.setAutonomous(true);
         velocityPid.reset();
         printCommandResponse(F("AUTO=1"), 8);
@@ -197,6 +220,16 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   Serial.print(F(",e=")); Serial.print(encoderFaultLatched ? 1 : 0);
   Serial.print(F(",f=")); Serial.println(faultLatched ? 1 : 0);
 }
+
+void printBatteryTelemetry(uint32_t nowMs) {
+  if (!telemetryEnabled ||
+      static_cast<uint32_t>(nowMs - lastBatteryTelemetryMs) < 1000UL ||
+      Serial.availableForWrite() < 32) return;
+  lastBatteryTelemetryMs = nowMs;
+  Serial.print(F("BAT=")); Serial.print(batteryMonitor.millivolts());
+  Serial.print(F(",ok=")); Serial.print(batteryMonitor.voltageValid() ? 1 : 0);
+  Serial.print(F(",inhibit=")); Serial.println(batteryMonitor.travelInhibited() ? 1 : 0);
+}
 }
 
 void setup() {
@@ -204,11 +237,14 @@ void setup() {
   motors.begin();
   wdt_disable();
   Serial.begin(SERIAL_BAUD);
+  batteryMonitor.begin();
+  batteryMonitor.update(millis());
   if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
     Serial.println(F("Previous reset cause: watchdog timeout; balance remains disarmed."));
   }
   encoders.begin();
   navigation.begin();
+  updateBatterySafety(millis());
 
   Serial.println(F("\nGyroGuard boot"));
   Serial.println(F("Keep robot upright and motionless during IMU calibration."));
@@ -229,6 +265,7 @@ void setup() {
   lastLeftEncoderMotionUs = lastControlUs;
   lastRightEncoderMotionUs = lastControlUs;
   lastTelemetryMs = millis();
+  lastBatteryTelemetryMs = millis();
 
   Serial.print(F("IMU zero angle: "));
   Serial.println(imuZeroAngleDeg, 3);
@@ -243,6 +280,7 @@ void setup() {
 
 void loop() {
   wdt_reset();
+  updateBatterySafety(millis());
   readSerialCommands();
 
   if (faultLatched) {
@@ -288,6 +326,8 @@ void loop() {
     targetAngleDeg = 0.0f;
     motors.disable();
     printTelemetry(millis(), 0.0f);
+    printBatteryInhibitMessage();
+    printBatteryTelemetry(millis());
     return;
   }
 
@@ -353,5 +393,7 @@ void loop() {
     encoderFaultMessagePending = false;
     pendingEncoderFaultReason = nullptr;
   }
+  printBatteryInhibitMessage();
   printTelemetry(millis(), balanceCommand);
+  printBatteryTelemetry(millis());
 }
