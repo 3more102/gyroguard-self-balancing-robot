@@ -1,4 +1,5 @@
 #include "sonar.h"
+#include "sonar_math.h"
 #include "config.h"
 #include <avr/interrupt.h>
 
@@ -71,11 +72,10 @@ void Ultrasonic::update(uint32_t nowUs) {
   interrupts();
 
   if (complete) {
-    // Sound speed is approximately 0.343 mm/us; divide by two for round trip.
-    const uint32_t mm = (pulse * 343UL) / 2000UL;
-    distanceMm_ = (mm > 65535UL) ? 65535U : static_cast<uint16_t>(mm);
-    valid_ = distanceMm_ >= SONAR_MIN_RANGE_MM &&
-             distanceMm_ <= SONAR_MAX_RANGE_MM;
+    const SonarReading reading =
+        sonarReadingFromPulse(pulse, SONAR_MIN_RANGE_MM, SONAR_MAX_RANGE_MM);
+    distanceMm_ = reading.distanceMm;
+    valid_ = reading.valid;
     waiting_ = false;
     resultReady_ = true;
   } else if (static_cast<uint32_t>(nowUs - triggerUs_) > 30000UL) {

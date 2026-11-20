@@ -13,6 +13,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
 - Fail-safe range gating: unknown, invalid or stale sensor data never authorizes forward motion or an unverified turn
+- Near-field HC-SR04 echoes are conservatively treated as 0 mm obstructions
 - TB6612FNG dual H-bridge driver
 - Explicit balance arming with live-IMU, upright-angle and low-pitch-rate interlocks
 - Watchdog reset recovery and tilt, sensor, timing safety handling
@@ -56,6 +57,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       motion_guard.h
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
+      sonar_math.h
       navigation_policy.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
@@ -74,6 +76,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_pid.cpp
       test_navigation_policy.cpp
       test_range_guard.cpp
+      test_sonar_math.cpp
       test_navigation_state_machine.cpp
       test_imu_validation.cpp
       test_servo_center_settle.cpp
@@ -105,6 +108,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-navigation-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
     /tmp/gyroguard-range-guard-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_sonar_math.cpp -o /tmp/gyroguard-sonar-test
+    /tmp/gyroguard-sonar-test
     g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
     /tmp/gyroguard-navigation-state-machine-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
@@ -161,7 +166,7 @@ The default parameter set is illustrative, not measured. Replace it using docs/M
 
 ## Safety and limitations
 
-- The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
+- The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed. A captured echo inside the nominal 30 mm near-field blind zone is treated as an obstruction, not a precise distance.
 - A single forward scanner does not provide full 360-degree perception or rear coverage.
 - If neither side scan verifies sufficient clearance, the robot holds position and retries rather than reversing into an unobserved area.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
