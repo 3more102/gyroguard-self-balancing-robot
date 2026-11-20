@@ -19,6 +19,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
           /tmp/gyroguard-navigation-test
+      - name: Test front-range freshness guard
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
+          /tmp/gyroguard-range-guard-test
 
   model-analysis:
     runs-on: ubuntu-latest

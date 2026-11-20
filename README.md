@@ -9,7 +9,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
 - SG90 scanning servo and deterministic obstacle-avoidance state machine
-- Fail-safe range gating: unknown sensor data never authorizes forward motion or an unverified turn
+- Fail-safe range gating: unknown, invalid or stale sensor data never authorizes forward motion or an unverified turn
 - TB6612FNG dual H-bridge driver
 - Tilt, sensor, timing and startup safety handling
 - Serial commands and commissioning documentation
@@ -42,8 +42,10 @@ Choose motors whose stall current is within the driver and battery limits. The T
       GyroGuard.ino
       config.h
       pid.h / pid.cpp
-      imu_mpu6050.h / imu_mpu6050.cpp
+      range_guard.h
       encoder.h / encoder.cpp
+      encoder_math.h
+      imu_mpu6050.h / imu_mpu6050.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       navigation_policy.h
@@ -61,6 +63,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
+      test_range_guard.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -85,8 +88,10 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-pid-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
     /tmp/gyroguard-navigation-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
+    /tmp/gyroguard-range-guard-test
 
-CI runs PID and navigation-policy host tests, the Stage 2 model analysis using GNU Octave, and Uno/classic-Nano compilation. The AVR builds enforce project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
+CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and Uno/classic-Nano compilation. The AVR builds enforce project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
 ## First-use behavior
 
@@ -94,8 +99,9 @@ CI runs PID and navigation-policy host tests, the Stage 2 model analysis using G
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
-- Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
+- Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
+- If neither side has verified clearance, the robot holds position and retries sensing; it does not reverse without rear sensing.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
@@ -106,7 +112,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown or invalid range readings inhibit translation instead of being interpreted as clear space.
+3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop. Unknown, invalid or stale range readings inhibit translation instead of being interpreted as clear space. No reverse is commanded without rear sensing.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
@@ -124,7 +130,8 @@ The default parameter set is explicitly illustrative because the final motor, ma
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
-- A single forward scanner does not provide full 360-degree perception.
+- A single forward scanner does not provide full 360-degree perception or rear coverage.
+- If neither side scan verifies sufficient clearance, the robot holds position and retries rather than reversing into an unobserved area.
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.

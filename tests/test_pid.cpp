@@ -1,4 +1,5 @@
 #include "../firmware/GyroGuard/pid.h"
+#include "../firmware/GyroGuard/encoder_math.h"
 #include <cassert>
 #include <cmath>
 
@@ -24,6 +25,23 @@ int main() {
   assert(near(derivative.update(0.0f, 0.01f, 2.5f, true), 2.5f));
   assert(near(derivative.update(1.0f, 0.0f), 0.0f));
   assert(near(derivative.update(1.0f, 0.5f), 0.0f));
+
+  // Encoder deltas convert to signed linear speed using the average wheel count.
+  // 200 mm circumference / 100 counts per revolution = 2 mm per count.
+  assert(near(encoderCountsToSpeedMmS(10, 10, 200.0f, 100.0f, 1.0f),
+              20.0f));
+  assert(near(encoderCountsToSpeedMmS(10, 0, 200.0f, 100.0f, 1.0f),
+              10.0f));
+  assert(near(encoderCountsToSpeedMmS(-10, -10, 200.0f, 100.0f, 1.0f),
+              -20.0f));
+  assert(near(encoderCountsToSpeedMmS(10, -10, 200.0f, 100.0f, 1.0f),
+              0.0f));
+  assert(near(encoderCountsToSpeedMmS(10, 10, 200.0f, 100.0f, 0.0f),
+              0.0f));
+  assert(near(encoderCountsToSpeedMmS(10, 10, 0.0f, 100.0f, 1.0f),
+              0.0f));
+  assert(near(encoderCountsToSpeedMmS(10, 10, 200.0f, 0.0f, 1.0f),
+              0.0f));
 
   return 0;
 }
