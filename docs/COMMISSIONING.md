@@ -38,7 +38,7 @@ Do not infer polarity from wire colors; motor and encoder wiring varies.
 1. Keep autonomous mode disabled (default); motor outputs remain disabled after calibration.
 2. Use a soft, clear test area with a safety tether or helper ready to catch the robot.
 3. With wheels raised, use a temporary low-PWM motor test sketch to verify motor and encoder polarity.
-4. Put the wheels on the ground while holding the frame within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s). Wait for valid pitch telemetry, then send 'b' to arm balance.
+4. Put the wheels on the ground while holding the frame within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s). Wait for valid pitch telemetry no older than 15 ms, then send 'b' to arm balance.
 5. Keep a hand near the physical power switch and release the frame only into the tethered test area.
 6. If it accelerates in the direction of the fall, immediately cut power. Reverse the balance sign / motor polarity only after verifying IMU sign and wheel direction.
 7. Tune the inner balance loop first:
@@ -69,7 +69,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 
 | Command | Action |
 |---|---|
-| b | Arm balance after a valid IMU sample, within 8 degrees of upright and below 10 degrees/s pitch rate |
+| b | Arm balance using an IMU sample no older than 15 ms, within 8 degrees of upright and below 10 degrees/s pitch rate |
 | d | Disarm motor outputs; robot will fall unless physically supported |
 | a | Enable autonomous cruise and obstacle avoidance (only while balance is armed) |
 | s | Disable travel; keep balance loop active |
