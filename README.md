@@ -130,13 +130,13 @@ CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and c
 - Motor control and autonomous movement are **disabled on boot**.
 - The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
 - MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction causes a latched motor-off fault.
-- Autonomous travel is inhibited if the 2S battery reading is invalid or at/below 6.8 V; travel is allowed again only after recovery to 7.0 V. Balance-only control remains available.
+- Autonomous travel is inhibited if the 2S battery reading is invalid or at/below 6.8 V; after a low-voltage trip, recovery to 7.0 V is required. Balance-only control remains available.
 - The robot calibrates the IMU while it is held upright and stationary.
 - After calibration, motor outputs remain disabled.
 - Front sonar measurements and range telemetry continue while autonomous travel is disabled; this diagnostic mode always commands zero translation.
 - The center servo settles before forward ranging after startup, mode changes and scans.
 - Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing. The pitch sample must be no older than 15 ms.
-- Send 'a' only after balance-only operation is stable and the battery reading is valid and above the recovery threshold to enable autonomous cruise and obstacle avoidance.
+- Send 'a' only after balance-only operation is stable and the battery reading is valid and above 6.8 V. After a low-voltage inhibit, the reading must recover to at least 7.0 V before travel can resume.
 - During straight autonomous travel, both encoders must report motion within 750 ms; during a differential turn, at least one must report motion within 400 ms. A timeout inhibits autonomous travel and returns the velocity target to upright while balance remains active.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
