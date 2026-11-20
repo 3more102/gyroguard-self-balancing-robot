@@ -21,7 +21,7 @@ void injectRange(uint16_t distanceMm, bool valid = true) {
   sonarInjected = true;
 }
 
-NavigationCommand step(ObstacleAvoidance &navigation, uint32_t nowMs) {
+NavigationCommand updateAt(ObstacleAvoidance &navigation, uint32_t nowMs) {
   fakeMillis = nowMs;
   return navigation.update(nowMs, nowMs * 1000UL);
 }
@@ -64,109 +64,97 @@ bool Ultrasonic::takeDistanceMm(uint16_t &distanceMm, bool &valid) {
 
 bool Ultrasonic::busy() const { return sonarBusy; }
 
-static void testRearmWaitsForSettledCenterAndValidRange() {
+static void testInvalidFrontRangeHoldsUntilSensorRecovers() {
   ObstacleAvoidance navigation;
   fakeMillis = 0;
   navigation.begin();
   navigation.setAutonomous(true);
 
-  NavigationCommand command = step(navigation, SERVO_SETTLE_MS - 1);
-  assert(near(command.targetSpeedMmS, 0.0f));
-  assert(!sonarBusy);
-
-  command = step(navigation, SERVO_SETTLE_MS);
+  NavigationCommand command = updateAt(navigation, SONAR_RETRY_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(sonarBusy);
 
   injectRange(0, false);
-  command = step(navigation, SERVO_SETTLE_MS + 1);
+  command = updateAt(navigation, SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(!navigation.frontDistanceValid());
 
-  command = step(navigation, 2 * SERVO_SETTLE_MS + 1);
-  assert(near(command.targetSpeedMmS, 0.0f));
+  command = updateAt(navigation, 2 * SONAR_RETRY_MS + 1);
   assert(sonarBusy);
-
   injectRange(900, true);
-  command = step(navigation, 2 * SERVO_SETTLE_MS + 2);
+  command = updateAt(navigation, 2 * SONAR_RETRY_MS + 2);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
   assert(navigation.frontDistanceValid());
+  assert(navigation.frontDistanceMm() == 900);
 }
 
-static void testTurnRequiresFreshSettledCenterReading() {
+static void testTurnRequiresFreshFrontRangeAfterward() {
   ObstacleAvoidance navigation;
   fakeMillis = 0;
   navigation.begin();
   navigation.setAutonomous(true);
 
-  step(navigation, SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS);
   injectRange(250, true);
-  NavigationCommand command = step(navigation, SERVO_SETTLE_MS + 1);
+  NavigationCommand command = updateAt(navigation, SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(fakeServoAngle == SERVO_LEFT_DEG);
 
-  step(navigation, SERVO_SETTLE_MS + 1 + SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 1 + SERVO_SETTLE_MS);
   injectRange(800, true);
-  step(navigation, SERVO_SETTLE_MS + 2 + SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 2 + SERVO_SETTLE_MS);
   assert(fakeServoAngle == SERVO_RIGHT_DEG);
 
-  step(navigation, SERVO_SETTLE_MS + 2 + 2 * SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 2 + 2 * SERVO_SETTLE_MS);
   injectRange(300, true);
-  command = step(navigation, SERVO_SETTLE_MS + 3 + 2 * SERVO_SETTLE_MS);
+  command = updateAt(navigation, SONAR_RETRY_MS + 3 + 2 * SERVO_SETTLE_MS);
   assert(fakeServoAngle == SERVO_CENTER_DEG);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(command.turnBiasPwm < 0.0f); // The left side has verified clearance.
 
   const uint32_t turnFinished =
-      SERVO_SETTLE_MS + 3 + 2 * SERVO_SETTLE_MS + TURN_DURATION_MS;
-  command = step(navigation, turnFinished);
+      SONAR_RETRY_MS + 3 + 2 * SERVO_SETTLE_MS + TURN_DURATION_MS;
+  command = updateAt(navigation, turnFinished);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(!navigation.frontDistanceValid());
 
-  command = step(navigation, turnFinished + SERVO_SETTLE_MS - 1);
-  assert(near(command.targetSpeedMmS, 0.0f));
-  assert(!sonarBusy);
-
-  command = step(navigation, turnFinished + SERVO_SETTLE_MS);
+  command = updateAt(navigation, turnFinished + SONAR_RETRY_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(sonarBusy);
-
   injectRange(900, true);
-  command = step(navigation, turnFinished + SERVO_SETTLE_MS + 1);
+  command = updateAt(navigation, turnFinished + SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 }
 
-static void testBlockedSidesHoldAndCenterClearanceBelowThresholdRescans() {
+static void testBothBlockedSidesHoldAndRescan() {
   ObstacleAvoidance navigation;
   fakeMillis = 0;
   navigation.begin();
   navigation.setAutonomous(true);
 
-  step(navigation, SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS);
   injectRange(250, true);
-  step(navigation, SERVO_SETTLE_MS + 1);
+  updateAt(navigation, SONAR_RETRY_MS + 1);
 
-  step(navigation, SERVO_SETTLE_MS + 1 + SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 1 + SERVO_SETTLE_MS);
   injectRange(200, true);
-  step(navigation, SERVO_SETTLE_MS + 2 + SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 2 + SERVO_SETTLE_MS);
 
-  step(navigation, SERVO_SETTLE_MS + 2 + 2 * SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 2 + 2 * SERVO_SETTLE_MS);
   injectRange(350, true);
-  NavigationCommand command = step(
-      navigation, SERVO_SETTLE_MS + 3 + 2 * SERVO_SETTLE_MS);
+  NavigationCommand command = updateAt(
+      navigation, SONAR_RETRY_MS + 3 + 2 * SERVO_SETTLE_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(near(command.turnBiasPwm, 0.0f));
   assert(fakeServoAngle == SERVO_CENTER_DEG);
 
-  const uint32_t holdStarted =
-      SERVO_SETTLE_MS + 3 + 2 * SERVO_SETTLE_MS;
-  command = step(navigation, holdStarted + SERVO_SETTLE_MS);
+  command = updateAt(
+      navigation, SONAR_RETRY_MS + 3 + 2 * SERVO_SETTLE_MS + SONAR_RETRY_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(sonarBusy);
-
-  // 400 mm is above the stop threshold but below the clear threshold.
-  injectRange(400, true);
-  command = step(navigation, holdStarted + SERVO_SETTLE_MS + 1);
+  injectRange(250, true);
+  command = updateAt(
+      navigation, SONAR_RETRY_MS + 4 + 2 * SERVO_SETTLE_MS + SONAR_RETRY_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(fakeServoAngle == SERVO_LEFT_DEG);
 }
@@ -177,32 +165,26 @@ static void testSideEchoIsDiscardedWhenAutonomyIsDisabled() {
   navigation.begin();
   navigation.setAutonomous(true);
 
-  step(navigation, SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS);
   injectRange(250, true);
-  step(navigation, SERVO_SETTLE_MS + 1);
+  updateAt(navigation, SONAR_RETRY_MS + 1);
 
-  step(navigation, SERVO_SETTLE_MS + 1 + SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS + 1 + SERVO_SETTLE_MS);
   assert(sonarBusy);
   navigation.setAutonomous(false);
   injectRange(800, true);
-  NavigationCommand command = step(
-      navigation, SERVO_SETTLE_MS + 2 + SERVO_SETTLE_MS);
+  NavigationCommand command = updateAt(
+      navigation, SONAR_RETRY_MS + 2 + SERVO_SETTLE_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(!navigation.frontDistanceValid());
   assert(fakeServoAngle == SERVO_CENTER_DEG);
 
   navigation.setAutonomous(true);
-  const uint32_t rearmAt = SERVO_SETTLE_MS + 2 + SERVO_SETTLE_MS;
-  command = step(navigation, rearmAt + SERVO_SETTLE_MS - 1);
-  assert(near(command.targetSpeedMmS, 0.0f));
-  assert(!sonarBusy);
-
-  command = step(navigation, rearmAt + SERVO_SETTLE_MS);
+  command = updateAt(navigation, SONAR_RETRY_MS + 3 + SERVO_SETTLE_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(sonarBusy);
-
   injectRange(900, true);
-  command = step(navigation, rearmAt + SERVO_SETTLE_MS + 1);
+  command = updateAt(navigation, SONAR_RETRY_MS + 4 + SERVO_SETTLE_MS);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 }
 
@@ -213,37 +195,25 @@ static void testSideEchoArrivingAfterRearmIsDiscarded() {
   navigation.begin();
   navigation.setAutonomous(true);
 
-  step(navigation, SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS);
   injectRange(250, true);
-  step(navigation, SERVO_SETTLE_MS + 1);
+  updateAt(navigation, SONAR_RETRY_MS + 1);
 
-  const uint32_t sideMeasurementStarted =
-      SERVO_SETTLE_MS + 1 + SERVO_SETTLE_MS;
-  step(navigation, sideMeasurementStarted);
-  assert(sonarBusy); // The left-side echo is pending.
+  updateAt(navigation, SONAR_RETRY_MS + 1 + SERVO_SETTLE_MS);
+  assert(sonarBusy); // Left-side measurement is in flight.
 
   navigation.setAutonomous(false);
-  navigation.setAutonomous(true); // Re-arm before that side echo arrives.
+  navigation.setAutonomous(true); // Re-arm before the old echo arrives.
 
-  injectRange(800, true); // A side result must not be accepted as a center result.
-  NavigationCommand command = step(navigation, sideMeasurementStarted + 1);
+  injectRange(800, true); // This is still the old left-side result.
+  NavigationCommand command = updateAt(
+      navigation, SONAR_RETRY_MS + 2 + SERVO_SETTLE_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
   assert(!navigation.frontDistanceValid());
-  assert(!sonarBusy); // The controller is waiting for center-servo settling.
-
-  command = step(
-      navigation, sideMeasurementStarted + SERVO_SETTLE_MS - 1);
-  assert(near(command.targetSpeedMmS, 0.0f));
-  assert(!sonarBusy);
-
-  command = step(
-      navigation, sideMeasurementStarted + SERVO_SETTLE_MS);
-  assert(near(command.targetSpeedMmS, 0.0f));
-  assert(sonarBusy); // Only now may a new center measurement begin.
+  assert(sonarBusy); // A fresh center measurement must be started.
 
   injectRange(900, true);
-  command = step(
-      navigation, sideMeasurementStarted + SERVO_SETTLE_MS + 1);
+  command = updateAt(navigation, SONAR_RETRY_MS + 3 + SERVO_SETTLE_MS);
   assert(navigation.frontDistanceValid());
   assert(navigation.frontDistanceMm() == 900);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
@@ -255,55 +225,26 @@ static void testStaleForwardRangeStopsCruise() {
   navigation.begin();
   navigation.setAutonomous(true);
 
-  step(navigation, SERVO_SETTLE_MS);
+  updateAt(navigation, SONAR_RETRY_MS);
   injectRange(900, true);
-  NavigationCommand command = step(navigation, SERVO_SETTLE_MS + 1);
+  NavigationCommand command = updateAt(navigation, SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 
-  command = step(navigation, SERVO_SETTLE_MS + FRONT_RANGE_MAX_AGE_MS);
+  // The sample is conservatively timestamped when the trigger fires at t=65 ms.
+  // Age == maxAge is fresh; age == maxAge + 1 must stop forward travel.
+  command = updateAt(
+      navigation, SONAR_RETRY_MS + FRONT_RANGE_MAX_AGE_MS);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 
-  command = step(
-      navigation, SERVO_SETTLE_MS + FRONT_RANGE_MAX_AGE_MS + 1);
-  assert(near(command.targetSpeedMmS, 0.0f));
-}
-
-static void testBalanceOnlyRangeTelemetryWhileDisarmed() {
-  ObstacleAvoidance navigation;
-  fakeMillis = 0;
-  navigation.begin();
-  assert(!navigation.autonomous());
-
-  NavigationCommand command = step(navigation, SERVO_SETTLE_MS - 1);
-  assert(!sonarBusy);
-  assert(near(command.targetSpeedMmS, 0.0f));
-
-  command = step(navigation, SERVO_SETTLE_MS);
-  assert(sonarBusy);
-  assert(near(command.targetSpeedMmS, 0.0f));
-
-  injectRange(800, true);
-  command = step(navigation, SERVO_SETTLE_MS + 1);
-  assert(navigation.frontDistanceValid());
-  assert(navigation.frontDistanceMm() == 800);
-  assert(near(command.targetSpeedMmS, 0.0f));
-  assert(near(command.turnBiasPwm, 0.0f));
-
-  const uint32_t nextSample = SERVO_SETTLE_MS + SONAR_RETRY_MS;
-  command = step(navigation, nextSample);
-  assert(sonarBusy);
-  injectRange(700, true);
-  command = step(navigation, nextSample + 1);
-  assert(navigation.frontDistanceValid());
-  assert(navigation.frontDistanceMm() == 700);
+  command = updateAt(
+      navigation, SONAR_RETRY_MS + FRONT_RANGE_MAX_AGE_MS + 1);
   assert(near(command.targetSpeedMmS, 0.0f));
 }
 
 int main() {
-  testBalanceOnlyRangeTelemetryWhileDisarmed();
-  testRearmWaitsForSettledCenterAndValidRange();
-  testTurnRequiresFreshSettledCenterReading();
-  testBlockedSidesHoldAndCenterClearanceBelowThresholdRescans();
+  testInvalidFrontRangeHoldsUntilSensorRecovers();
+  testTurnRequiresFreshFrontRangeAfterward();
+  testBothBlockedSidesHoldAndRescan();
   testSideEchoIsDiscardedWhenAutonomyIsDisabled();
   testSideEchoArrivingAfterRearmIsDiscarded();
   testStaleForwardRangeStopsCruise();

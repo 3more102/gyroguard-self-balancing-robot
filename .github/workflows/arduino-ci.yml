@@ -23,6 +23,14 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_range_guard.cpp -o /tmp/gyroguard-range-guard-test
           /tmp/gyroguard-range-guard-test
+      - name: Test obstacle-avoidance state machine
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
+          /tmp/gyroguard-navigation-state-machine-test
+      - name: Test servo-center settle and re-arm behavior
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_servo_center_settle.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-servo-settle-test
+          /tmp/gyroguard-servo-settle-test
       - name: Test IMU identity and calibration validation
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
@@ -31,10 +39,6 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
           /tmp/gyroguard-arm-test
-      - name: Test obstacle-avoidance state machine
-        run: |
-          g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
-          /tmp/gyroguard-navigation-state-machine-test
 
   compile-avr-targets:
     runs-on: ubuntu-latest

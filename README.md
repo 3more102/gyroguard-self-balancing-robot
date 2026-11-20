@@ -62,13 +62,14 @@ Choose motors whose stall current is within the driver and battery limits. The T
       RESOURCE_BUDGETS.md
       WATCHDOG.md
     tests/
+      fakes/Arduino.h / fakes/Servo.h
       test_pid.cpp
       test_navigation_policy.cpp
       test_range_guard.cpp
       test_imu_validation.cpp
-      test_balance_arming.cpp
-      fakes/Arduino.h / Servo.h
       test_navigation_state_machine.cpp
+      test_servo_center_settle.cpp
+      test_balance_arming.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -97,10 +98,12 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-range-guard-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
     /tmp/gyroguard-imu-validation-test
-    g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
-    /tmp/gyroguard-arm-test
     g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
     /tmp/gyroguard-navigation-state-machine-test
+    g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_servo_center_settle.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-servo-settle-test
+    /tmp/gyroguard-servo-settle-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
+    /tmp/gyroguard-arm-test
 
 CI runs all host test suites and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
@@ -111,10 +114,10 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction causes a latched motor-off fault.
 - The robot calibrates the IMU while it is held upright and stationary.
 - After calibration, motor outputs remain disabled.
-- Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing.
+- Wait for valid pitch telemetry, hold the robot within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s), then send 'b' over Serial Monitor (115200 baud) to arm balancing. The pitch sample must be no older than 15 ms.
 - Send 'a' only after balance-only operation is stable to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
-- The center servo is allowed to settle after a scan or re-arm; a fresh forward measurement at or beyond OBSTACLE_CLEAR_MM is required before cruise resumes.
+- After an avoidance turn, a fresh forward measurement is required before cruise resumes.
 - If neither side has verified clearance, the robot holds position and retries sensing; it does not reverse without rear sensing.
 - Send 's' to stop autonomous travel while keeping balance active.
 - Send 'd' to disarm motor outputs; the robot will fall unless physically supported.

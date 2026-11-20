@@ -38,7 +38,7 @@ Do not infer polarity from wire colors; motor and encoder wiring varies.
 1. Keep autonomous mode disabled (default); motor outputs remain disabled after calibration.
 2. Use a soft, clear test area with a safety tether or helper ready to catch the robot.
 3. With wheels raised, use a temporary low-PWM motor test sketch to verify motor and encoder polarity.
-4. Put the wheels on the ground while holding the frame within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s). Wait for valid pitch telemetry, then send 'b' to arm balance.
+4. Put the wheels on the ground while holding the frame within 8 degrees of upright and nearly motionless (pitch rate below 10 degrees/s). Wait for valid pitch telemetry no older than 15 ms, then send 'b' to arm balance.
 5. Keep a hand near the physical power switch and release the frame only into the tethered test area.
 6. If it accelerates in the direction of the fall, immediately cut power. Reverse the balance sign / motor polarity only after verifying IMU sign and wheel direction.
 7. Tune the inner balance loop first:
@@ -59,17 +59,17 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send 'a' only after balance-only operation is stable and balance is armed. The robot waits for the center servo to settle and for a fresh, valid forward-range measurement at or beyond OBSTACLE_CLEAR_MM before moving.
+5. Send 'a' only after balance-only operation is stable and balance is armed. The center servo must settle for SERVO_SETTLE_MS, and the robot will not drive autonomously until it has a fresh, valid forward-range measurement.
 6. Confirm that an invalid or stale forward reading holds travel at zero while the balance controller remains active. A sensor that repeatedly reports -1 will intentionally prevent autonomous travel; check wiring, alignment, target reflectivity and the configured range.
 7. Place obstacles on both sides and verify the robot does not turn toward a side whose clearance has not been measured. If neither side has verified clearance, it holds position and retries; it does not reverse without rear sensing.
-8. After a scan, re-arm or turn, verify the center servo has settled and a fresh center measurement at or beyond OBSTACLE_CLEAR_MM confirms clearance before cruise resumes.
+8. After a scan, re-arm or turn, wait SERVO_SETTLE_MS for the center servo to settle; forward travel remains disabled until a fresh center measurement confirms clearance.
 9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, SERVO_SETTLE_MS, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
 | Command | Action |
 |---|---|
-| b | Arm balance after a valid IMU sample, within 8 degrees of upright and below 10 degrees/s pitch rate |
+| b | Arm balance using an IMU sample no older than 15 ms, within 8 degrees of upright and below 10 degrees/s pitch rate |
 | d | Disarm motor outputs; robot will fall unless physically supported |
 | a | Enable autonomous cruise and obstacle avoidance (only while balance is armed) |
 | s | Disable travel; keep balance loop active |
