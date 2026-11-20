@@ -85,7 +85,7 @@ The battery monitor is a travel inhibit, not a motor power cut or cell-level BMS
 1. Disconnect the motor supply completely. Keep the robot physically supported with wheels raised; power only the controller over USB.
 2. Build a temporary Uno test image with `GYROGUARD_TEST_WATCHDOG_RESET` enabled, following the command in WATCHDOG.md. The test marks the balance state as armed and deliberately lets the watchdog expire before normal IMU calibration.
 3. On the next boot, verify the firmware reports an unexpected reset while balance was armed, latches a startup fault, and keeps TB6612 STBY low.
-4. Power-cycle once after inspecting the result, then flash the normal production image without the test macro.
+4. While the bootloader is waiting for upload, flash the normal production image without the test macro. Do not expect a normal application boot while the test macro remains compiled.
 5. If the test build repeatedly resets, the installed bootloader did not preserve the SRAM marker through its startup path. Stop the test and do not rely on this marker with that bootloader until the startup path is corrected.
 
 **Never perform this test with motor power connected or while the robot is standing unsupported.**
