@@ -4,6 +4,7 @@
 #include "pid.h"
 #include "imu_mpu6050.h"
 #include "encoder.h"
+#include "encoder_math.h"
 #include "motor_driver.h"
 #include "obstacle_avoidance.h"
 #include <math.h>
@@ -53,11 +54,9 @@ bool updateVelocity(uint32_t nowUs) {
   previousCounts = current;
 
   velocityLoopDt = static_cast<float>(elapsedUs) * 1.0e-6f;
-  const float averageCounts = 0.5f *
-      (static_cast<float>(leftDelta) + static_cast<float>(rightDelta));
-  const float distanceMm = averageCounts * WHEEL_CIRCUMFERENCE_MM /
-                           ENCODER_COUNTS_PER_WHEEL_REV;
-  measuredSpeedMmS = distanceMm / velocityLoopDt;
+  measuredSpeedMmS = encoderCountsToSpeedMmS(
+      leftDelta, rightDelta, WHEEL_CIRCUMFERENCE_MM,
+      ENCODER_COUNTS_PER_WHEEL_REV, velocityLoopDt);
   lastVelocityUs = nowUs;
   return true;
 }
