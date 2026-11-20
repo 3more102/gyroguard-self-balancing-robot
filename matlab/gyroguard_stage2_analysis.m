@@ -20,7 +20,7 @@ p = gyroguard_parameters();
 validateParameters(p);
 
 [massEquivalent, bodyAxleInertia, motorForceGain, motorBackEmfDamping, ...
-    effectiveDamping, determinant] = derivedParameters(p);
+    effectiveDamping, rotorCrossInertia, determinant] = derivedParameters(p);
 
 [A, B] = linearizedModel(p);
 
@@ -58,12 +58,13 @@ if p.isIllustrative
     fprintf(['WARNING: numerical parameters are placeholders. Replace them ' ...
              'before reporting physical performance or designing final gains.\n']);
 end
-fprintf('Equivalent wheel/rotor mass M: %.6f kg\n', massEquivalent);
-fprintf('Body inertia about axle J: %.6f kg m^2\n', bodyAxleInertia);
+fprintf('Equivalent wheel/rotor translational mass M: %.6f kg\n', massEquivalent);
+fprintf('Body and motor-rotor pitch inertia J: %.6f kg m^2\n', bodyAxleInertia);
 fprintf('Motor force gain Ku: %.6f N/V\n', motorForceGain);
-fprintf('Motor back-EMF damping Be: %.6f N s/m\n', motorBackEmfDamping);
-fprintf('Total translational damping b: %.6f N s/m\n', effectiveDamping);
-fprintf('Mass-matrix determinant Delta: %.9f\n', determinant);
+fprintf('Motor back-EMF force coefficient Be: %.6f N s/m\n', motorBackEmfDamping);
+fprintf('Effective translational damping b: %.6f N s/m\n', effectiveDamping);
+fprintf('Motor-rotor cross-inertia contribution: %.6f kg m\n', rotorCrossInertia);
+fprintf('Mass-matrix determinant at upright Delta: %.9f\n', determinant);
 fprintf('Maximum finite-difference error in A: %.3e\n', linearizationErrorA);
 fprintf('Maximum finite-difference error in B: %.3e\n', linearizationErrorB);
 fprintf('Open-loop poles (rad/s):\n');
@@ -111,6 +112,12 @@ results.openLoopPoles = openLoopPoles;
 results.controllabilityRank = controllabilityRank;
 results.linearizationErrorA = linearizationErrorA;
 results.linearizationErrorB = linearizationErrorB;
+results.massEquivalent = massEquivalent;
+results.bodyAxleInertia = bodyAxleInertia;
+results.motorForceGain = motorForceGain;
+results.motorBackEmfDamping = motorBackEmfDamping;
+results.effectiveDamping = effectiveDamping;
+results.rotorCrossInertia = rotorCrossInertia;
 results.timeNonlinear = timeNonlinear;
 results.stateNonlinear = stateNonlinear;
 results.timeLinear = timeLinear;
@@ -163,12 +170,18 @@ assert(isfinite(p.motorEfficiency) && ...
     'Motor efficiency must be in the interval (0, 1].');
 end
 
-function [M, J, Ku, Be, b, Delta] = derivedParameters(p)
+function [M, J, Ku, Be, b, rotorCrossInertia, Delta] = derivedParameters(p)
+rotorPitchInertia = 2.0 * p.motorRotorInertia_kgm2 * ...
+    (1.0 - p.motorGearRatio)^2;
+rotorCrossInertia = 2.0 * p.motorRotorInertia_kgm2 * ...
+    p.motorGearRatio * (1.0 - p.motorGearRatio) / p.wheelRadius_m;
+
 M = 2.0 * p.wheelMass_kg + ...
     2.0 * p.wheelInertia_kgm2 / p.wheelRadius_m^2 + ...
     2.0 * p.motorRotorInertia_kgm2 * p.motorGearRatio^2 / p.wheelRadius_m^2;
 J = p.bodyPitchInertia_kgm2 + ...
-    p.bodyMass_kg * p.bodyComHeight_m^2;
+    p.bodyMass_kg * p.bodyComHeight_m^2 + rotorPitchInertia;
+
 Ku = 2.0 * p.motorEfficiency * p.motorGearRatio * ...
     p.motorTorqueConstant_NmPerA / ...
     (p.motorResistance_ohm * p.wheelRadius_m);
@@ -176,54 +189,64 @@ Be = 2.0 * p.motorEfficiency * p.motorGearRatio^2 * ...
     p.motorTorqueConstant_NmPerA * p.motorBackEmfConstant_VsPerRad / ...
     (p.motorResistance_ohm * p.wheelRadius_m^2);
 b = p.translationalDamping_NsPerM + Be;
-Delta = (M + p.bodyMass_kg) * J - ...
-    (p.bodyMass_kg * p.bodyComHeight_m)^2;
+
+h0 = p.bodyMass_kg * p.bodyComHeight_m + rotorCrossInertia;
+Delta = (M + p.bodyMass_kg) * J - h0^2;
 assert(isfinite(Delta) && Delta > 0.0, ...
-    'The coupled mass matrix must be positive and nonsingular.');
+    'The coupled mass matrix must be positive and nonsingular at upright.');
 end
 
 function [A, B] = linearizedModel(p)
-[M, J, Ku, ~, b, Delta] = derivedParameters(p);
+[M, J, Ku, Be, b, rotorCrossInertia, Delta] = derivedParameters(p);
 m = p.bodyMass_kg;
 l = p.bodyComHeight_m;
+r = p.wheelRadius_m;
 g = p.gravity_mps2;
-c = p.pitchDamping_NmsPerRad;
+cEff = p.pitchDamping_NmsPerRad + r^2 * Be;
+h0 = m * l + rotorCrossInertia;
+a = M + m;
 
 A = zeros(4, 4);
 A(1, 2) = 1.0;
-A(2, 2) = -J * b / Delta;
-A(2, 3) = -(m^2) * g * l^2 / Delta;
-A(2, 4) = m * l * c / Delta;
+A(2, 2) = (-J * b - h0 * r * Be) / Delta;
+A(2, 3) = -h0 * m * g * l / Delta;
+A(2, 4) = (J * r * Be + h0 * cEff) / Delta;
 A(3, 4) = 1.0;
-A(4, 2) = m * l * b / Delta;
-A(4, 3) = (M + m) * m * g * l / Delta;
-A(4, 4) = -(M + m) * c / Delta;
+A(4, 2) = (h0 * b + a * r * Be) / Delta;
+A(4, 3) = a * m * g * l / Delta;
+A(4, 4) = (-h0 * r * Be - a * cEff) / Delta;
 
 B = zeros(4, 1);
-B(2) = J * Ku / Delta;
-B(4) = -m * l * Ku / Delta;
+B(2) = (J + h0 * r) * Ku / Delta;
+B(4) = -(h0 + a * r) * Ku / Delta;
 end
 
 function dx = nonlinearDynamics(~, x, motorVoltage, p)
-[M, J, Ku, Be, ~, ~] = derivedParameters(p);
+[M, J, Ku, Be, ~, rotorCrossInertia, ~] = derivedParameters(p);
 motorVoltage = min(max(motorVoltage, -p.motorVoltageLimit_V), ...
     p.motorVoltageLimit_V);
 
 m = p.bodyMass_kg;
 l = p.bodyComHeight_m;
+r = p.wheelRadius_m;
 g = p.gravity_mps2;
 v = x(2);
 theta = x(3);
 thetaRate = x(4);
 
-massMatrix = [M + m, m * l * cos(theta); ...
-              m * l * cos(theta), J];
+coupling = m * l * cos(theta) + rotorCrossInertia;
+effectivePitchDamping = p.pitchDamping_NmsPerRad + r^2 * Be;
+massMatrix = [M + m, coupling; ...
+              coupling, J];
 
-rhs = [Ku * motorVoltage - Be * v - ...
-       p.translationalDamping_NsPerM * v + ...
+rhs = [Ku * motorVoltage - ...
+       (p.translationalDamping_NsPerM + Be) * v + ...
+       r * Be * thetaRate + ...
        m * l * thetaRate^2 * sin(theta); ...
        m * g * l * sin(theta) - ...
-       p.pitchDamping_NmsPerRad * thetaRate];
+       r * Ku * motorVoltage + ...
+       r * Be * v - ...
+       effectivePitchDamping * thetaRate];
 
 accelerations = massMatrix \ rhs;
 dx = [v; accelerations(1); thetaRate; accelerations(2)];
