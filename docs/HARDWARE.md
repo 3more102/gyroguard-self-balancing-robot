@@ -70,6 +70,8 @@ Before buying motors, check each motor's stall current at the intended motor vol
 
 Toshiba's typical application circuit shows local 0.1 µF and 10 µF decoupling on both the motor and logic supply rails. Check whether the breakout already includes suitable capacitors; otherwise add the recommended local decoupling close to the driver.
 
+**STBY reset safety:** Keep the documented 10 kΩ pull-down from STBY to GND so the driver remains in standby while MCU pins are high-impedance during reset. Check that the breakout has no conflicting pull-up. Firmware drives STBY low before clearing other motor-control pins during a fault.
+
 Reference: [Toshiba TB6612FNG official datasheet](https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf?did=10660&prodName=TB6612FNG).
 
 ## 5. MPU-6050 mounting
