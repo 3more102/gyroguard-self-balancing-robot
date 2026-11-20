@@ -73,10 +73,9 @@ constexpr uint8_t SERVO_LEFT_DEG = 145;
 constexpr uint8_t SERVO_RIGHT_DEG = 35;
 constexpr uint16_t SERVO_SETTLE_MS = 250;
 constexpr uint16_t SONAR_RETRY_MS = 65;
+constexpr uint16_t HOLD_RESCAN_MS = 500;
 constexpr uint16_t TURN_DURATION_MS = 650;
-constexpr uint16_t REVERSE_DURATION_MS = 300;
 constexpr float TURN_BIAS_PWM = 38.0f;
-constexpr float REVERSE_SPEED_MM_S = -55.0f;
 
 // If scan directions are reversed by your bracket, swap LEFT and RIGHT angles.
 constexpr unsigned long SERIAL_BAUD = 115200UL;
