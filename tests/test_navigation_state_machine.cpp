@@ -199,12 +199,14 @@ static void testStaleForwardRangeStopsCruise() {
   NavigationCommand command = updateAt(navigation, SONAR_RETRY_MS + 1);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 
+  // The sample is timestamped when the echo is consumed at t=66 ms.
+  // Age == maxAge is fresh; age == maxAge + 1 must stop forward travel.
   command = updateAt(
-      navigation, SONAR_RETRY_MS + FRONT_RANGE_MAX_AGE_MS);
+      navigation, SONAR_RETRY_MS + 1 + FRONT_RANGE_MAX_AGE_MS);
   assert(near(command.targetSpeedMmS, CRUISE_SPEED_MM_S));
 
   command = updateAt(
-      navigation, SONAR_RETRY_MS + FRONT_RANGE_MAX_AGE_MS + 1);
+      navigation, SONAR_RETRY_MS + 2 + FRONT_RANGE_MAX_AGE_MS);
   assert(near(command.targetSpeedMmS, 0.0f));
 }
 
