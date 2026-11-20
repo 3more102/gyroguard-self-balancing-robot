@@ -66,9 +66,10 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 
 1. Do not deeply discharge the Li-ion pack to test the threshold.
 2. With the wheels raised and a current-limited adjustable bench supply in place of the pack, lower the input until batteryMv reaches 6800 mV.
-3. Verify batteryLow=1 and that the balance loop remains active. Send a; auto must remain 0. If autonomous mode was already enabled before the voltage crossed the threshold, the firmware must disable it.
-4. Raise the supply to at least 7000 mV and wait for the filtered reading to recover. The inhibit clears, but autonomous travel remains disabled until you send a again.
-5. Restore the protected 2S pack and confirm the battery telemetry agrees with a multimeter.
+3. Verify batteryLow=1, batteryValid=1 and that the balance loop remains active. Send a; auto must remain 0. If autonomous mode was already enabled before the voltage crossed the threshold, the firmware must disable it.
+4. With the supply disconnected from the divider input, verify batteryValid=0 and that sending a still leaves auto=0.
+5. Raise the supply to at least 7000 mV and wait for the filtered reading to recover. The inhibit clears, but autonomous travel remains disabled until you send a again.
+6. Restore the protected 2S pack and confirm the battery telemetry agrees with a multimeter.
 
 Low voltage is a travel inhibit, not a motor power cut: the robot must retain balance control while you bring it to a safe stop and disconnect it physically.
 
