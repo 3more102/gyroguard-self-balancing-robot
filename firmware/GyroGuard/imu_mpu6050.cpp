@@ -4,10 +4,6 @@
 #include <Wire.h>
 #include <math.h>
 
-#if !defined(WIRE_HAS_TIMEOUT)
-#error "GyroGuard requires Arduino AVR Boards core 1.8.6+ with Wire timeout support."
-#endif
-
 namespace {
 constexpr uint8_t REG_SMPLRT_DIV = 0x19;
 constexpr uint8_t REG_CONFIG = 0x1A;
