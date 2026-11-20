@@ -7,7 +7,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
 2. Complete the wiring in HARDWARE.md, including the 10 kΩ TB6612 STBY pull-down and local driver decoupling.
 3. With the battery disconnected, check all power rails and grounds.
-4. Compile for Arduino Uno. Upload with the motor battery disconnected.
+4. Compile for Arduino Uno or classic Nano. Use the Nano's new ATmega328P / Optiboot bootloader when relying on watchdog recovery. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
 
 ## Stage 2 — Verify sensor identity and orientation
@@ -86,7 +86,9 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen. After any normal boot or watchdog reset, balance remains disarmed until 'b' is deliberately sent. The 'd' command removes motor torque; use it only while the robot is physically supported. Use the battery switch for an emergency power cut.
+An invalid or stale ultrasonic measurement inhibits autonomous translation while the balance loop remains active and the sensor is retried. If neither scan direction verifies sufficient clearance, the robot holds position instead of reversing without rear sensing. After a latched control fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen. After any normal boot, balance remains disarmed until 'b' is deliberately sent. An application watchdog or brown-out reset is stricter: it latches a startup fault, disables the driver, and requires inspection plus a power-cycle before arming. The 'd' command removes motor torque; use it only while the robot is physically supported. Use the battery switch for an emergency power cut.
+
+**Watchdog reset capture:** GyroGuard captures Optiboot's reset flags from register r2 before normal C initialization and also captures MCUSR for bootloaders that preserve it. An application watchdog reset (WDRF without EXTRF) or brown-out reset will not automatically restart balance control. Use an Optiboot-based Uno or Nano new-bootloader configuration; the old ATmegaBOOT Nano bootloader may reset-loop before the sketch starts. See WATCHDOG.md.
 
 ## Tuning record
 
