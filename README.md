@@ -93,7 +93,7 @@ CI runs all host test suites and compiles the Uno and classic Nano targets. It e
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel requires a fresh, valid center-range measurement. Invalid or stale data holds translation at zero while balancing remains active.
-- After an avoidance turn, a fresh forward measurement is required before cruise resumes.
+- The center servo is allowed to settle after a scan or re-arm; a fresh forward measurement at or beyond OBSTACLE_CLEAR_MM is required before cruise resumes.
 - If neither side has verified clearance, the robot holds position and retries sensing; it does not reverse without rear sensing.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
