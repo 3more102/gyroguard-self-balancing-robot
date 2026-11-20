@@ -8,6 +8,7 @@
 #include "encoder_math.h"
 #include "motor_driver.h"
 #include "obstacle_avoidance.h"
+#include "battery_monitor.h"
 #include <math.h>
 
 namespace {
@@ -15,6 +16,7 @@ MPU6050 imu;
 EncoderPair encoders;
 MotorDriver motors;
 ObstacleAvoidance navigation;
+BatteryMonitor batteryMonitor;
 
 PIDController balancePid(BALANCE_KP, BALANCE_KI, BALANCE_KD,
                          -BALANCE_OUTPUT_LIMIT, BALANCE_OUTPUT_LIMIT);
@@ -66,7 +68,9 @@ void readSerialCommands() {
   while (Serial.available() > 0) {
     const char command = static_cast<char>(Serial.read());
     if (command == 'a' || command == 'A') {
-      if (!faultLatched) {
+      if (batteryMonitor.lowBattery()) {
+        Serial.println(F("LOW BATTERY: autonomous travel blocked; charge the pack."));
+      } else if (!faultLatched) {
         navigation.setAutonomous(true);
         velocityPid.reset();
         Serial.println(F("Autonomous mode enabled."));
@@ -97,6 +101,8 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   if (navigation.frontDistanceValid()) Serial.print(navigation.frontDistanceMm());
   else Serial.print(-1);
   Serial.print(F(",auto=")); Serial.print(navigation.autonomous() ? 1 : 0);
+  Serial.print(F(",batteryMv=")); Serial.print(batteryMonitor.millivolts());
+  Serial.print(F(",batteryLow=")); Serial.print(batteryMonitor.lowBattery() ? 1 : 0);
   Serial.print(F(",fault=")); Serial.println(faultLatched ? 1 : 0);
 }
 }
@@ -104,6 +110,8 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
 void setup() {
   wdt_disable();
   Serial.begin(SERIAL_BAUD);
+  batteryMonitor.begin();
+  batteryMonitor.update(millis());
   if ((gyroguard_reset_cause & _BV(WDRF)) != 0) {
     Serial.println(F("Previous reset cause: watchdog timeout."));
   }
@@ -135,6 +143,9 @@ void setup() {
   Serial.println(gyroBiasDps, 4);
   Serial.println(F("Balance loop armed. Keep a hand near the power switch."));
   Serial.println(F("Autonomous mode is disabled. Send 'a' only after balance tuning."));
+  if (batteryMonitor.lowBattery()) {
+    Serial.println(F("LOW BATTERY: autonomous travel is inhibited; balance remains active."));
+  }
 
   wdt_enable(WDTO_250MS);
 }
@@ -142,6 +153,13 @@ void setup() {
 void loop() {
   wdt_reset();
   readSerialCommands();
+  batteryMonitor.update(millis());
+  if (batteryMonitor.lowBattery() && navigation.autonomous()) {
+    navigation.setAutonomous(false);
+    velocityPid.reset();
+    targetAngleDeg = 0.0f;
+    Serial.println(F("LOW BATTERY: autonomous travel disabled; balance remains active."));
+  }
 
   if (faultLatched) {
     motors.disable();
