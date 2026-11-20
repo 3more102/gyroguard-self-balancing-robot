@@ -6,10 +6,10 @@ void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
   servo_.write(SERVO_CENTER_DEG);
   sonar_.begin();
-  state_ = DRIVE;
   autonomous_ = AUTO_DRIVE_ON_BOOT;
+  state_ = autonomous_ ? SENSOR_HOLD : DRIVE;
   stateSinceMs_ = millis();
-  lastSonarStartMs_ = 0;
+  lastSonarStartMs_ = stateSinceMs_;
   leftDistanceMm_ = 0;
   rightDistanceMm_ = 0;
   leftValid_ = false;
@@ -35,9 +35,11 @@ void ObstacleAvoidance::setAutonomous(bool enabled) {
     servo_.write(SERVO_CENTER_DEG);
   } else {
     autonomous_ = true;
-    state_ = DRIVE;
+    state_ = SENSOR_HOLD;
     servo_.write(SERVO_CENTER_DEG);
-    lastSonarStartMs_ = 0;
+    // The center servo must settle before a new forward measurement.
+    stateSinceMs_ = millis();
+    lastSonarStartMs_ = stateSinceMs_;
   }
 
   frontDistanceMm_ = 0;
@@ -113,14 +115,14 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
 
     const NavigationDecision decision = chooseNavigationDecision(
         leftValid_, leftDistanceMm_, rightValid_, rightDistanceMm_,
-        static_cast<uint16_t>(OBSTACLE_CLEAR_MM));
+        OBSTACLE_CLEAR_MM);
 
     servo_.write(SERVO_CENTER_DEG);
     if (decision.valid) {
       turnDirection_ = static_cast<float>(decision.turnDirection);
-      state_ = decision.reverseFirst ? REVERSING : TURNING;
+      state_ = TURNING;
     } else {
-      // Neither side has enough verified clearance. Hold position and retry.
+      // Neither side has enough verified clearance. Hold; never reverse blind.
       state_ = SENSOR_HOLD;
       frontDistanceMm_ = 0;
       frontDistanceValid_ = false;
@@ -133,7 +135,8 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
     if (!valid) {
       state_ = SENSOR_HOLD;
       stateSinceMs_ = nowMs;
-    } else if (distance < OBSTACLE_STOP_MM) {
+    } else if (distance < OBSTACLE_CLEAR_MM) {
+      // The forward path is not yet proven clear; re-check the sides.
       startScan(nowMs);
     } else {
       state_ = DRIVE;
@@ -177,26 +180,20 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
 
     case TURNING:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= TURN_DURATION_MS) {
-        state_ = DRIVE;
+        state_ = SENSOR_HOLD;
         stateSinceMs_ = nowMs;
         lastSonarStartMs_ = nowMs;
         frontDistanceMm_ = 0;
         frontDistanceValid_ = false;
-        // Wait for a fresh center reading before driving forward again.
+        // Wait for servo settling and a fresh clear centre reading.
         return {0.0f, 0.0f};
       }
       // Positive bias speeds the left wheel relative to the right: turn right.
       return {0.0f, turnDirection_ * TURN_BIAS_PWM};
 
-    case REVERSING:
-      if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= REVERSE_DURATION_MS) {
-        state_ = TURNING;
-        stateSinceMs_ = nowMs;
-      }
-      return {REVERSE_SPEED_MM_S, 0.0f};
-
     case SENSOR_HOLD:
       if (!sonar_.busy() &&
+          static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS &&
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
         startSonar(nowUs, nowMs, SENSOR_HOLD_MEASURE);
       }
