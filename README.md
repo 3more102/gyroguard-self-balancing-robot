@@ -5,6 +5,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 ## Included
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
+- Stationarity-checked IMU startup calibration (angle, gyro and acceleration stability)
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
@@ -47,6 +48,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
       navigation_policy.h
+      imu_calibration_stats.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
     docs/
       HARDWARE.md
@@ -54,6 +56,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
+      test_imu_calibration.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -78,18 +81,20 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-pid-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
     /tmp/gyroguard-navigation-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_calibration.cpp -o /tmp/gyroguard-imu-calibration-test
+    /tmp/gyroguard-imu-calibration-test
 
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
-- The robot calibrates the IMU while it is held upright and stationary.
+- The robot calibrates the IMU while it is held upright and stationary. Calibration is rejected if measured motion, vibration or acceleration magnitude is outside the configured stability limits.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Autonomous forward travel waits for a valid center-range measurement. Invalid range data or an unverified scan direction holds translation at zero while balancing remains active.
 - After an avoidance turn, a fresh forward measurement is required before cruise resumes.
 - Send 's' to request zero forward speed while keeping balance active.
 - Send 't' to toggle telemetry; send '?' for commands.
-- A tilt, sensor or control-timing fault latches the motor driver off. Power-cycle after correcting the cause.
+- An IMU read failure or rejected calibration, excessive tilt, or control-timing fault latches the motor driver off. Hold the robot still and power-cycle to retry calibration.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
