@@ -14,8 +14,11 @@ The Arduino CI workflow validates:
 - Host encoder-motion watchdog tests.
 - Host battery ADC conversion, plausibility and hysteresis tests.
 - Host battery-monitor sampling, invalid-sample and recovery-latch tests.
+- Host watchdog reset-cause and armed-marker integrity tests.
+- Host encoder-to-linear-speed conversion tests.
 - Arduino Uno build (`arduino:avr:uno`).
-- Classic Nano build (`arduino:avr:nano`).
+- Classic Nano new-bootloader build (`arduino:avr:nano:cpu=atmega328`).
+- Classic Nano old-bootloader build (`arduino:avr:nano:cpu=atmega328old`).
 
 Both AVR builds use the same firmware directory and install the AVR core plus the Arduino Servo library.
 

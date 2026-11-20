@@ -31,6 +31,7 @@ This guide is for a two-wheel differential-drive robot using an Arduino Uno R3 /
 | TB6612 BIN1 / right direction | D11 |
 | TB6612 BIN2 / right direction | D12 |
 | TB6612 STBY | A3 |
+The external 10 kΩ pull-down keeps STBY low while the ATmega328P pins are high-impedance during reset. Firmware also drives STBY low first in `MotorDriver::disable()`, before clearing PWM and direction outputs.
 | Left encoder channel A | D2 (INT0) |
 | Left encoder channel B | D4 |
 | Right encoder channel A | D3 (INT1) |

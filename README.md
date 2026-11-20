@@ -139,6 +139,8 @@ gyroguard-self-balancing-robot/
 │   └── GyroGuard/
 │       ├── GyroGuard.ino          # Main application and scheduler
 │       ├── config.h               # Pins, timing, gains and limits
+│       ├── watchdog_startup.cpp / watchdog_startup.h
+│       ├── reset_policy.h          # Reset flags and armed-state marker policy
 │       ├── pid.*                  # PID controller
 │       ├── imu_mpu6050.*           # MPU-6050 interface
 │       ├── encoder.*               # Quadrature encoder feedback
@@ -262,6 +264,7 @@ For the complete, ordered calibration and tuning procedure, see [Commissioning a
 ### Fault handling and interlocks
 
 - Motor outputs are disabled on boot. A normal boot or watchdog reset never automatically re-arms the robot.
+- An unexpected reset while balance was armed is detected by a validated two-word `.noinit` marker; startup latches a motor-off fault until the robot is inspected and deliberately power-cycled.
 - MPU-6050 identity is checked, startup calibration is validated, and I²C transactions are bounded by a 5 ms timeout.
 - A tilt beyond the configured 32° safety limit or a control-loop gap beyond 20 ms triggers a latched control fault and disables the motor driver.
 - Low or invalid battery voltage inhibits autonomous travel while the balance controller remains active. The default 2S travel-inhibit threshold is 6.8 V; recovery requires at least 7.0 V and a deliberate new `a` command.
@@ -276,7 +279,7 @@ The GitHub Actions workflow runs:
 
 - C++11 host unit tests for PID control, navigation policy, range validation, sonar classification, obstacle-avoidance state transitions, servo settling, IMU validation, balance arming, encoder-motion supervision, and battery monitoring.
 - MATLAB/Octave Stage 2 model checks using GNU Octave.
-- Arduino Uno and classic Nano compilation.
+- Arduino Uno and classic Nano new- and old-bootloader compilation.
 - Flash and static SRAM checks for each AVR target.
 
 The current CI budgets are **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget leaves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P. Passing the static budget does not replace stack analysis or hardware stress testing.
@@ -316,6 +319,12 @@ g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyrog
 
 g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes_battery tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test
 /tmp/gyroguard-battery-monitor-test
+
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_reset_policy.cpp -o /tmp/gyroguard-reset-policy-test
+/tmp/gyroguard-reset-policy-test
+
+g++ -std=c++11 -Wall -Wextra -Werror tests/test_encoder_math.cpp -o /tmp/gyroguard-encoder-math-test
+/tmp/gyroguard-encoder-math-test
 ```
 
 ## Mathematical model
