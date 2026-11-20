@@ -49,7 +49,9 @@ bool ObstacleAvoidance::autonomous() const {
 }
 
 bool ObstacleAvoidance::blocked() const {
-  return state_ == SENSOR_HOLD || state_ == SENSOR_HOLD_MEASURE;
+  return autonomous_ &&
+         (state_ == SENSOR_HOLD || state_ == SENSOR_HOLD_MEASURE ||
+          (state_ == DRIVE && !frontDistanceValid_));
 }
 
 bool ObstacleAvoidance::frontDistanceValid() const {
