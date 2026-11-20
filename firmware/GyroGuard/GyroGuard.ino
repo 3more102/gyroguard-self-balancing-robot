@@ -68,8 +68,8 @@ void readSerialCommands() {
   while (Serial.available() > 0) {
     const char command = static_cast<char>(Serial.read());
     if (command == 'a' || command == 'A') {
-      if (batteryMonitor.lowBattery()) {
-        Serial.println(F("LOW BATTERY: autonomous travel blocked; charge the pack."));
+      if (batteryMonitor.travelInhibited()) {
+        Serial.println(F("BATTERY SAFETY: voltage low or invalid; autonomous travel blocked."));
       } else if (!faultLatched) {
         navigation.setAutonomous(true);
         velocityPid.reset();
@@ -102,6 +102,7 @@ void printTelemetry(uint32_t nowMs, float motorCommand) {
   else Serial.print(-1);
   Serial.print(F(",auto=")); Serial.print(navigation.autonomous() ? 1 : 0);
   Serial.print(F(",batteryMv=")); Serial.print(batteryMonitor.millivolts());
+  Serial.print(F(",batteryValid=")); Serial.print(batteryMonitor.voltageValid() ? 1 : 0);
   Serial.print(F(",batteryLow=")); Serial.print(batteryMonitor.lowBattery() ? 1 : 0);
   Serial.print(F(",fault=")); Serial.println(faultLatched ? 1 : 0);
 }
@@ -143,8 +144,8 @@ void setup() {
   Serial.println(gyroBiasDps, 4);
   Serial.println(F("Balance loop armed. Keep a hand near the power switch."));
   Serial.println(F("Autonomous mode is disabled. Send 'a' only after balance tuning."));
-  if (batteryMonitor.lowBattery()) {
-    Serial.println(F("LOW BATTERY: autonomous travel is inhibited; balance remains active."));
+  if (batteryMonitor.travelInhibited()) {
+    Serial.println(F("BATTERY SAFETY: voltage low or invalid; autonomous travel is inhibited."));
   }
 
   wdt_enable(WDTO_250MS);
@@ -154,11 +155,11 @@ void loop() {
   wdt_reset();
   readSerialCommands();
   batteryMonitor.update(millis());
-  if (batteryMonitor.lowBattery() && navigation.autonomous()) {
+  if (batteryMonitor.travelInhibited() && navigation.autonomous()) {
     navigation.setAutonomous(false);
     velocityPid.reset();
     targetAngleDeg = 0.0f;
-    Serial.println(F("LOW BATTERY: autonomous travel disabled; balance remains active."));
+    Serial.println(F("BATTERY SAFETY: autonomous travel disabled; balance remains active."));
   }
 
   if (faultLatched) {
