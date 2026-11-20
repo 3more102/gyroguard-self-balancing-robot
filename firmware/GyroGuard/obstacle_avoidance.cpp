@@ -11,6 +11,8 @@ void ObstacleAvoidance::begin() {
   lastSonarStartMs_ = 0;
   haveLeft_ = false;
   haveRight_ = false;
+  frontDistanceMm_ = 0;
+  frontDistanceValid_ = false;
   turnDirection_ = 0.0f;
 }
 
@@ -24,6 +26,14 @@ void ObstacleAvoidance::setAutonomous(bool enabled) {
 
 bool ObstacleAvoidance::autonomous() const {
   return autonomous_;
+}
+
+bool ObstacleAvoidance::frontDistanceValid() const {
+  return frontDistanceValid_;
+}
+
+uint16_t ObstacleAvoidance::frontDistanceMm() const {
+  return frontDistanceMm_;
 }
 
 void ObstacleAvoidance::startScan(uint32_t nowMs) {
@@ -49,6 +59,8 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   if (!sonar_.takeDistanceMm(distance, valid)) return;
 
   if (state_ == DRIVE) {
+    frontDistanceValid_ = valid;
+    if (valid) frontDistanceMm_ = distance;
     if (valid && autonomous_ && distance < OBSTACLE_STOP_MM) {
       startScan(nowMs);
     }
