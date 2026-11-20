@@ -5,7 +5,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 ## Stage 1 — Inspect and compile
 
 1. Assemble the two-wheel chassis rigidly; align both wheels and the axle.
-2. Complete the wiring in HARDWARE.md.
+2. Complete the wiring in HARDWARE.md, including the 10 kΩ TB6612 STBY pull-down.
 3. With the battery disconnected, check all power rails and grounds.
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
@@ -55,9 +55,11 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 2. Verify the servo points forward at 90 degrees.
 3. Place a flat obstacle at known distances (for example 20 cm, 40 cm and 80 cm).
 4. Verify the rangeMm field in Serial Monitor reports plausible distances; -1 means no valid echo was received.
-5. Send a only after balance-only operation is stable. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn toward the side with more measured clearance.
-6. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
-7. Adjust OBSTACLE_STOP_MM, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
+5. Verify that a missing/invalid echo is displayed as -1. When autonomous mode is enabled, invalid forward range must hold travel at zero; it must never be interpreted as an infinitely clear path.
+6. Send 'a' only after balance-only operation is stable and the forward sensor returns valid measurements. The robot should stop forward travel when an obstacle is inside the stop distance, scan left/right, then turn only toward a side with a valid reading greater than OBSTACLE_CLEAR_MM.
+7. If neither side has a verified-clear reading, the robot must remain balanced in HOLD and rescan. It must not reverse because there is no rear-facing range sensor.
+8. If it chooses the wrong side, verify servo physical left/right orientation and swap scan angles if needed.
+9. Adjust OBSTACLE_STOP_MM, OBSTACLE_CLEAR_MM, HOLD_RESCAN_MS, TURN_DURATION_MS and TURN_BIAS_PWM only after confirming sensor readings and motor polarity.
 
 ## Serial commands
 
@@ -75,7 +77,7 @@ The motor driver is disabled and the fault is latched if:
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
-After a fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
+A sonar timeout does not disable the balance controller; it places autonomous travel in HOLD until valid forward sensing and a safe path are restored. After a latched IMU/tilt/timing fault, inspect the robot, correct the cause, and power-cycle. A reset is intentional; do not automatically re-arm a robot that has fallen.
 
 ## Tuning record
 
