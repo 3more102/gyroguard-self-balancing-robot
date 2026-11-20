@@ -82,34 +82,39 @@ bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
 
   RunningStats accelAngleStats;
   RunningStats gyroRateStats;
+  RunningStats gyroMagnitudeStats;
   RunningStats accelMagnitudeStats;
 
   for (uint16_t i = 0; i < samples; ++i) {
     int16_t ax, ay, az, gx, gy, gz;
     if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
 
-    const float axG = static_cast<float>(ax);
-    const float ayG = static_cast<float>(ay);
-    const float azG = static_cast<float>(az);
-    const float accelAngle =
-        atan2f(-axG, azG) * RAD_TO_DEG_F;
-    const float gyroRate = static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    const float axRaw = static_cast<float>(ax);
+    const float ayRaw = static_cast<float>(ay);
+    const float azRaw = static_cast<float>(az);
+    const float gxDps = static_cast<float>(gx) / GYRO_LSB_PER_DPS;
+    const float gyDps = static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    const float gzDps = static_cast<float>(gz) / GYRO_LSB_PER_DPS;
+    const float accelAngle = atan2f(-axRaw, azRaw) * RAD_TO_DEG_F;
+    const float gyroMagnitudeDps =
+        sqrtf(gxDps * gxDps + gyDps * gyDps + gzDps * gzDps);
     const float accelMagnitudeG =
-        sqrtf(axG * axG + ayG * ayG + azG * azG) / ACCEL_LSB_PER_G;
+        sqrtf(axRaw * axRaw + ayRaw * ayRaw + azRaw * azRaw) /
+        ACCEL_LSB_PER_G;
 
     accelAngleStats.add(accelAngle);
-    gyroRateStats.add(gyroRate);
+    gyroRateStats.add(gyDps);
+    gyroMagnitudeStats.add(gyroMagnitudeDps);
     accelMagnitudeStats.add(accelMagnitudeG);
     delay(5);
   }
 
   if (!calibrationWindowIsStationary(
-          accelAngleStats, gyroRateStats, accelMagnitudeStats,
-          IMU_CAL_MAX_ACCEL_ANGLE_STD_DEG,
-          IMU_CAL_MAX_GYRO_RATE_STD_DPS,
-          IMU_CAL_MIN_GRAVITY_G,
-          IMU_CAL_MAX_GRAVITY_G,
-          IMU_CAL_MAX_GRAVITY_STD_G)) {
+          accelAngleStats, gyroRateStats, gyroMagnitudeStats,
+          accelMagnitudeStats, IMU_CAL_MAX_ACCEL_ANGLE_STD_DEG,
+          IMU_CAL_MAX_ABS_ANGLE_DEG, IMU_CAL_MAX_GYRO_RATE_STD_DPS,
+          IMU_CAL_MAX_GYRO_MAGNITUDE_DPS, IMU_CAL_MIN_GRAVITY_G,
+          IMU_CAL_MAX_GRAVITY_G, IMU_CAL_MAX_GRAVITY_STD_G)) {
     return false;
   }
 
