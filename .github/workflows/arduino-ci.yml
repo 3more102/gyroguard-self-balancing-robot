@@ -47,6 +47,10 @@ jobs:
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
           /tmp/gyroguard-motion-guard-test
+      - name: Test battery voltage policy
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
+          /tmp/gyroguard-battery-policy-test
 
   model-analysis:
     runs-on: ubuntu-latest
