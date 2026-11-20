@@ -1,5 +1,6 @@
 #include "obstacle_avoidance.h"
 #include "config.h"
+#include "navigation_safety.h"
 
 void ObstacleAvoidance::begin() {
   servo_.attach(PIN_SERVO);
@@ -13,6 +14,7 @@ void ObstacleAvoidance::begin() {
   haveRight_ = false;
   frontDistanceMm_ = 0;
   frontDistanceValid_ = false;
+  lastFrontMeasurementMs_ = 0;
   turnDirection_ = 0.0f;
 }
 
@@ -59,19 +61,20 @@ void ObstacleAvoidance::consumeSonar(uint32_t nowMs) {
   if (!sonar_.takeDistanceMm(distance, valid)) return;
 
   if (state_ == DRIVE) {
+    lastFrontMeasurementMs_ = nowMs;
     frontDistanceValid_ = valid;
     if (valid) frontDistanceMm_ = distance;
     if (valid && autonomous_ && distance < OBSTACLE_STOP_MM) {
       startScan(nowMs);
     }
   } else if (state_ == SCAN_LEFT_MEASURE) {
-    leftDistanceMm_ = valid ? distance : SONAR_MAX_RANGE_MM;
+    leftDistanceMm_ = gyroguardConservativeScanDistance(valid, distance);
     haveLeft_ = true;
     servo_.write(SERVO_RIGHT_DEG);
     state_ = SCAN_RIGHT_SETTLE;
     stateSinceMs_ = nowMs;
   } else if (state_ == SCAN_RIGHT_MEASURE) {
-    rightDistanceMm_ = valid ? distance : SONAR_MAX_RANGE_MM;
+    rightDistanceMm_ = gyroguardConservativeScanDistance(valid, distance);
     haveRight_ = true;
 
     if (haveLeft_ && haveRight_) {
@@ -105,7 +108,10 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
           static_cast<uint32_t>(nowMs - lastSonarStartMs_) >= SONAR_RETRY_MS) {
         startSonar(nowUs, nowMs, DRIVE);
       }
-      return {CRUISE_SPEED_MM_S, 0.0f};
+      const bool rangeSafe = gyroguardFrontRangeAllowsCruise(
+          frontDistanceValid_, frontDistanceMm_, nowMs, lastFrontMeasurementMs_,
+          SONAR_DATA_TIMEOUT_MS, static_cast<uint16_t>(OBSTACLE_STOP_MM));
+      return {rangeSafe ? CRUISE_SPEED_MM_S : 0.0f, 0.0f};
 
     case SCAN_LEFT_SETTLE:
       if (static_cast<uint32_t>(nowMs - stateSinceMs_) >= SERVO_SETTLE_MS) {
@@ -130,7 +136,7 @@ NavigationCommand ObstacleAvoidance::update(uint32_t nowMs, uint32_t nowUs) {
         state_ = DRIVE;
         stateSinceMs_ = nowMs;
         lastSonarStartMs_ = nowMs;
-        return {CRUISE_SPEED_MM_S, 0.0f};
+        return {0.0f, 0.0f};
       }
       // Positive bias speeds left wheel relative to right wheel (right turn).
       return {0.0f, turnDirection_ * TURN_BIAS_PWM};
