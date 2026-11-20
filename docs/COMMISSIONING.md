@@ -18,7 +18,7 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 4. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
 5. If not, correct the IMU orientation/axis mapping before continuing.
 
-The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
+The calibration assumes the chassis is held at its intended upright angle. The firmware also checks pitch variation, gyro motion and acceleration magnitude over the sample window. If the check fails, the motor driver remains disabled: hold the robot upright and still, inspect the IMU mount, then power-cycle to retry.
 
 ## Stage 3 — Verify motor polarity with wheels raised
 
