@@ -68,10 +68,12 @@ Choose motors whose stall current is within the driver and battery limits. The T
       gyroguard_stage2_analysis.m
       README.md
     tests/
+      fakes/Arduino.h / fakes/Servo.h
       test_pid.cpp
       test_navigation_policy.cpp
       test_range_guard.cpp
       test_imu_validation.cpp
+      test_navigation_state_machine.cpp
       test_balance_arming.cpp
     .github/workflows/arduino-ci.yml
 
@@ -101,10 +103,12 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-range-guard-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_imu_validation.cpp -o /tmp/gyroguard-imu-validation-test
     /tmp/gyroguard-imu-validation-test
+    g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
+    /tmp/gyroguard-navigation-state-machine-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_balance_arming.cpp -o /tmp/gyroguard-arm-test
     /tmp/gyroguard-arm-test
 
-CI runs all host test suites, validates the Stage 2 model with GNU Octave, and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
+CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
 ## First-use behavior
 
@@ -133,6 +137,17 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command, forward sonar range and balance-armed state. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 
+## Stage 2 mathematical model
+
+The repository includes a parameterized sagittal-plane two-wheel inverted-pendulum model. It includes motor reaction torque on the body, motor back-EMF based on rotor speed relative to the body-mounted stator, and reflected motor-rotor inertia in the coupled mass matrix. The MATLAB/Octave analysis checks the actuation signs, validates the linearized A/B matrices against finite-difference Jacobians, reports open-loop poles and controllability, and compares nonlinear and linearized fall responses.
+
+Run from the repository root:
+
+    addpath('matlab');
+    results = gyroguard_stage2_analysis(false);
+
+The default parameter set is illustrative, not measured. Replace it using docs/MEASUREMENT_WORKSHEET.md before treating numerical results as properties of the physical robot. See docs/MATHEMATICAL_MODEL.md for the derivation and assumptions.
+
 ## Safety and limitations
 
 - The ultrasonic sensor is a simple single-beam rangefinder; soft, angled, narrow or sound-absorbing objects may be missed.
@@ -141,19 +156,6 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 - The avoidance turn is a timed differential-drive maneuver; it is not SLAM or map-based navigation.
 - No software can compensate for an underpowered driver, loose frame, poor wheel alignment, unsuitable motors or an incorrectly mounted IMU.
 - Use a physical power switch and accessible battery disconnect.
-
-## Stage 2 mathematical model
-
-The longitudinal plant model is documented in [MATHEMATICAL_MODEL.md](docs/MATHEMATICAL_MODEL.md). It includes the equal-and-opposite motor reaction torque on the body, motor back-EMF based on rotor speed relative to the body-mounted stator, and reflected motor-rotor inertia in the coupled mass matrix.
-
-Run the MATLAB/Octave analysis from the repository root:
-
-    addpath('matlab');
-    results = gyroguard_stage2_analysis(false);
-
-The analysis checks motor-force sign conventions, compares analytical A/B matrices with finite-difference Jacobians, computes open-loop poles and controllability, and compares nonlinear and linear responses. It does not require the Control System Toolbox.
-
-**Important:** the default physical parameters are illustrative placeholders, not measured hardware data. Complete [MEASUREMENT_WORKSHEET.md](docs/MEASUREMENT_WORKSHEET.md) and replace the placeholders before final controller design or reporting physical performance.
 
 ## License
 

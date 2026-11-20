@@ -33,6 +33,11 @@ float PIDController::update(float error, float dtSeconds,
   const float candidateIntegral = integral_ + error * dtSeconds;
   const float candidateOutput = kp_ * error + ki_ * candidateIntegral
                               + kd_ * derivative;
+  if (!isfinite(candidateIntegral) || !isfinite(candidateOutput)) {
+    reset();
+    return 0.0f;
+  }
+
   const bool pushesHigh = candidateOutput > outputMax_ && error > 0.0f;
   const bool pushesLow = candidateOutput < outputMin_ && error < 0.0f;
   if (!pushesHigh && !pushesLow) integral_ = candidateIntegral;
@@ -41,6 +46,10 @@ float PIDController::update(float error, float dtSeconds,
   hasPrevious_ = true;
 
   const float output = kp_ * error + ki_ * integral_ + kd_ * derivative;
+  if (!isfinite(output)) {
+    reset();
+    return 0.0f;
+  }
   if (output > outputMax_) return outputMax_;
   if (output < outputMin_) return outputMin_;
   return output;
