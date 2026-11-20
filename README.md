@@ -5,6 +5,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 ## Included
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
+- Startup IMU calibration with pitch, three-axis gyro and acceleration-stability checks
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
@@ -42,6 +43,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       config.h
       pid.h / pid.cpp
       imu_mpu6050.h / imu_mpu6050.cpp
+      imu_calibration.h
       encoder.h / encoder.cpp
       motor_driver.h / motor_driver.cpp
       sonar.h / sonar.cpp
@@ -49,6 +51,9 @@ Choose motors whose stall current is within the driver and battery limits. The T
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_imu_calibration.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -65,12 +70,12 @@ Arduino CLI example:
     arduino-cli core install arduino:avr
     arduino-cli lib install Servo
     arduino-cli compile --fqbn arduino:avr:uno firmware/GyroGuard
-    arduino-cli upload -p YOUR_PORT --fqbn arduino:avr:uno firmware/GyroGuard
 
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
-- The robot calibrates the IMU while it is held upright and stationary.
+- The robot calibrates the IMU while it is held upright and stationary (500 samples, approximately 2.5 seconds).
+- Calibration is rejected if pitch/gyro movement, excessive vibration, or an implausible acceleration magnitude is detected.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Send 's' to request zero forward speed while keeping balance active.
