@@ -54,6 +54,8 @@ constexpr uint16_t BATTERY_SAMPLE_PERIOD_MS = 100;
 constexpr uint8_t BATTERY_FILTER_DIVISOR = 4;
 constexpr uint16_t LOW_BATTERY_INHIBIT_MV = 6800;
 constexpr uint16_t LOW_BATTERY_RECOVERY_MV = 7000;
+constexpr uint16_t BATTERY_MIN_VALID_MV = 5000;
+constexpr uint16_t BATTERY_MAX_VALID_MV = 9000;
 
 // MPU-6050
 constexpr uint8_t MPU6050_ADDRESS = 0x68; // AD0 low; use 0x69 if AD0 high
