@@ -152,7 +152,39 @@ static void testCenterRangeBelowClearanceTriggersRescan() {
   assert(fakeServoAngle == SERVO_LEFT_DEG);
 }
 
+static void testBalanceOnlyKeepsFrontSonarTelemetryWithoutTravel() {
+  ObstacleAvoidance navigation;
+  fakeMillis = 0;
+  navigation.begin();
+  assert(!navigation.autonomous());
+
+  NavigationCommand command = step(navigation, SERVO_SETTLE_MS - 1);
+  assert(!sonarBusy);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(near(command.turnBiasPwm, 0.0f));
+
+  command = step(navigation, SERVO_SETTLE_MS);
+  assert(sonarBusy);
+  injectRange(800, true);
+  command = step(navigation, SERVO_SETTLE_MS + 1);
+  assert(navigation.frontDistanceValid());
+  assert(navigation.frontDistanceMm() == 800);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(near(command.turnBiasPwm, 0.0f));
+
+  const uint32_t nextSample = SERVO_SETTLE_MS + SONAR_RETRY_MS;
+  command = step(navigation, nextSample);
+  assert(sonarBusy);
+  injectRange(700, true);
+  command = step(navigation, nextSample + 1);
+  assert(navigation.frontDistanceValid());
+  assert(navigation.frontDistanceMm() == 700);
+  assert(near(command.targetSpeedMmS, 0.0f));
+  assert(near(command.turnBiasPwm, 0.0f));
+}
+
 int main() {
+  testBalanceOnlyKeepsFrontSonarTelemetryWithoutTravel();
   testRearmWaitsForCenterServoSettle();
   testTurnWaitsForCenterServoSettleBeforeForwardRange();
   testCenterRangeBelowClearanceTriggersRescan();
