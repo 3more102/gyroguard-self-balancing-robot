@@ -30,7 +30,7 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install arduino:avr
           arduino-cli lib install Servo
-      - name: Compile Uno and classic Nano with memory budgets
+      - name: Compile Uno and classic Nano targets with memory budgets
         shell: bash
         run: |
           set -euo pipefail
@@ -69,4 +69,5 @@ jobs:
           }
 
           check_build arduino:avr:uno
-          check_build arduino:avr:nano
+          check_build arduino:avr:nano:cpu=atmega328
+          check_build arduino:avr:nano:cpu=atmega328old
