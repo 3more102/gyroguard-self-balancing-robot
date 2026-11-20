@@ -52,8 +52,12 @@ Choose motors whose stall current is within the driver and battery limits. The T
       HARDWARE.md
       COMMISSIONING.md
     tests/
+      fakes/
+        Arduino.h
+        Servo.h
       test_pid.cpp
       test_navigation_policy.cpp
+      test_navigation_state_machine.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -78,6 +82,8 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-pid-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_navigation_policy.cpp -o /tmp/gyroguard-navigation-test
     /tmp/gyroguard-navigation-test
+    g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes tests/test_navigation_state_machine.cpp firmware/GyroGuard/obstacle_avoidance.cpp -o /tmp/gyroguard-navigation-state-machine-test
+    /tmp/gyroguard-navigation-state-machine-test
 
 ## First-use behavior
 
