@@ -17,7 +17,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 - Near-field HC-SR04 echoes are conservatively treated as 0 mm obstructions
 - TB6612FNG dual H-bridge driver
 - Explicit balance arming with live-IMU, upright-angle and low-pitch-rate interlocks
-- Watchdog reset recovery and tilt, sensor, timing safety handling
+- Optiboot/MCUSR reset-cause capture; application watchdog and brown-out resets latch a motor-off fault pending inspection
 - Serial commands and commissioning documentation
 
 > **Safety:** This is an engineering project, not a ready-to-drive appliance. Initial gains and mechanical parameters are starting points only. A self-balancing robot can move unexpectedly and fall. Commission it with the wheels raised, then use a tether or soft catch area. Keep hands, cables and loose clothing away from wheels.
@@ -51,6 +51,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
       arm_guard.h
       pid.h / pid.cpp
       watchdog_startup.cpp / watchdog_startup.h
+      reset_policy.h
       range_guard.h
       imu_mpu6050.h / imu_mpu6050.cpp
       imu_validation.h
@@ -87,6 +88,8 @@ Choose motors whose stall current is within the driver and battery limits. The T
       test_servo_center_settle.cpp
       test_balance_arming.cpp
       test_motion_guard.cpp
+      test_reset_policy.cpp
+      test_encoder_math.cpp
       test_battery_policy.cpp
       test_battery_monitor.cpp
     .github/workflows/arduino-ci.yml
@@ -95,7 +98,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
 
 1. Install Arduino IDE 2.x or Arduino CLI.
 2. Open firmware/GyroGuard/GyroGuard.ino.
-3. Select **Arduino Uno** (or classic Nano with ATmega328P).
+3. Select **Arduino Uno** or classic Nano with ATmega328P. For reliable watchdog reset-cause recovery on Nano, select the **new Optiboot bootloader**.
 4. Compile and upload. The sketch uses Wire from the AVR core and the Servo library. Install Servo through Arduino IDE Library Manager or run arduino-cli lib install Servo.
 5. Read the hardware and commissioning guides before applying motor power.
 
@@ -127,12 +130,16 @@ Host unit tests (requires a C++11 compiler):
     /tmp/gyroguard-arm-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_motion_guard.cpp -o /tmp/gyroguard-motion-guard-test
     /tmp/gyroguard-motion-guard-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_reset_policy.cpp -o /tmp/gyroguard-reset-policy-test
+    /tmp/gyroguard-reset-policy-test
+    g++ -std=c++11 -Wall -Wextra -Werror tests/test_encoder_math.cpp -o /tmp/gyroguard-encoder-math-test
+    /tmp/gyroguard-encoder-math-test
     g++ -std=c++11 -Wall -Wextra -Werror tests/test_battery_policy.cpp -o /tmp/gyroguard-battery-policy-test
     /tmp/gyroguard-battery-policy-test
     g++ -std=c++11 -Wall -Wextra -Werror -I tests/fakes_battery tests/test_battery_monitor.cpp firmware/GyroGuard/battery_monitor.cpp -o /tmp/gyroguard-battery-monitor-test
     /tmp/gyroguard-battery-monitor-test
 
-CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and compiles the Uno and classic Nano targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
+CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and compiles the Uno plus classic Nano new- and old-bootloader targets. It enforces project budgets of **24,000 bytes of flash** and **1,200 bytes of static SRAM** per target. The SRAM budget reserves at least 848 bytes for runtime stack and other dynamic use on the ATmega328P; passing the static budget is not a substitute for hardware stack and stress testing. See [RESOURCE_BUDGETS.md](docs/RESOURCE_BUDGETS.md).
 
 ## First-use behavior
 
@@ -154,6 +161,7 @@ CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and c
 - Send 'd' to disarm motor outputs; the robot will fall unless physically supported.
 - Send 't' to toggle telemetry; send '?' for commands.
 - A tilt, IMU or control-timing fault latches the motor driver off. An encoder-feedback fault inhibits autonomous travel and returns the velocity target to upright while balance remains active; it blocks autonomous re-arming until power-cycle after inspection.
+- An application watchdog reset (WDRF without EXTRF) or brown-out reset latches a startup fault; inspect the mechanism and power system before power-cycling. Optiboot upload-timeout resets are distinguished from application watchdog faults.
 
 Do not enable autonomous mode until balance-only operation has been tuned and verified.
 
