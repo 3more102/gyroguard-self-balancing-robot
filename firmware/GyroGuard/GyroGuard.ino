@@ -117,7 +117,7 @@ void setup() {
   }
 
   if (!imu.calibrate(IMU_CALIBRATION_SAMPLES, imuZeroAngleDeg, gyroBiasDps)) {
-    latchFault(F("IMU calibration read failed"));
+    latchFault(F("IMU calibration rejected: motion, vibration, or I2C read error"));
     return;
   }
 

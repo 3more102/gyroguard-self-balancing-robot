@@ -5,6 +5,7 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 ## Included
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
+- Stationarity-checked 500-sample IMU startup calibration
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
@@ -40,6 +41,7 @@ Choose motors whose stall current is within the driver and battery limits. The T
     firmware/GyroGuard/
       GyroGuard.ino
       config.h
+      calibration_stats.h
       pid.h / pid.cpp
       imu_mpu6050.h / imu_mpu6050.cpp
       encoder.h / encoder.cpp
@@ -49,6 +51,9 @@ Choose motors whose stall current is within the driver and battery limits. The T
     docs/
       HARDWARE.md
       COMMISSIONING.md
+    tests/
+      test_pid.cpp
+      test_calibration_stats.cpp
     .github/workflows/arduino-ci.yml
 
 ## Build
@@ -70,7 +75,7 @@ Arduino CLI example:
 ## First-use behavior
 
 - Autonomous movement is **disabled on boot**.
-- The robot calibrates the IMU while it is held upright and stationary.
+- The robot calibrates the IMU while it is held upright and stationary. Calibration checks pitch/gyro variation and acceleration magnitude; it rejects a moving or vibrating chassis.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
 - Send 's' to request zero forward speed while keeping balance active.
@@ -83,7 +88,7 @@ Do not enable autonomous mode until balance-only operation has been tuned and ve
 
 1. **Inner loop — 200 Hz:** MPU-6050 accelerometer + gyroscope complementary filter; pitch controller commands common motor effort.
 2. **Outer loop — 50 Hz:** encoder-derived linear velocity controller requests a small pitch setpoint offset.
-3. **Navigation:** the HC-SR04 is scanned left/center/right by the servo. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
+3. **Navigation:** the HC-SR04 is scanned at center during travel, then left/right after an obstacle is detected. The avoidance state machine changes the velocity request and applies a differential turn bias. It never pauses the balance loop.
 
 The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor command and forward sonar range. The initial gains in config.h are starting values, not universal tuning values. Motor polarity, encoder polarity, wheel diameter, encoder counts and balance gains must be verified on the assembled robot.
 

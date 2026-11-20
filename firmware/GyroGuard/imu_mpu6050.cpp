@@ -1,5 +1,6 @@
 #include "imu_mpu6050.h"
 #include "config.h"
+#include "calibration_stats.h"
 #include <Wire.h>
 #include <math.h>
 
@@ -11,6 +12,7 @@ constexpr uint8_t REG_ACCEL_CONFIG = 0x1C;
 constexpr uint8_t REG_ACCEL_XOUT_H = 0x3B;
 constexpr uint8_t REG_PWR_MGMT_1 = 0x6B;
 constexpr float GYRO_LSB_PER_DPS = 131.0f;
+constexpr float ACCEL_LSB_PER_G = 16384.0f;
 constexpr float RAD_TO_DEG_F = 57.2957795f;
 }
 
@@ -69,21 +71,47 @@ bool MPU6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gx,
 bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
                         float &gyroBiasDps) {
   if (!initialized_ || samples < 100) return false;
-  float angleSum = 0.0f;
-  float gyroSum = 0.0f;
+
+  RunningStats angleStats;
+  RunningStats gyroStats;
+  RunningStats accelMagnitudeStats;
 
   for (uint16_t i = 0; i < samples; ++i) {
     int16_t ax, ay, az, gx, gy, gz;
-    if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
+    if (!readRaw(ax, ay, az, gx, gy, gz)) {
+      filterInitialized_ = false;
+      return false;
+    }
+
+    const float accelXG = static_cast<float>(ax) / ACCEL_LSB_PER_G;
+    const float accelYG = static_cast<float>(ay) / ACCEL_LSB_PER_G;
+    const float accelZG = static_cast<float>(az) / ACCEL_LSB_PER_G;
     const float accelAngle = atan2f(-static_cast<float>(ax),
                                     static_cast<float>(az)) * RAD_TO_DEG_F;
-    angleSum += accelAngle;
-    gyroSum += static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    const float gyroRateDps = static_cast<float>(gy) / GYRO_LSB_PER_DPS;
+    const float accelMagnitudeG = sqrtf(accelXG * accelXG +
+                                        accelYG * accelYG +
+                                        accelZG * accelZG);
+
+    angleStats.add(accelAngle);
+    gyroStats.add(gyroRateDps);
+    accelMagnitudeStats.add(accelMagnitudeG);
     delay(5);
   }
 
-  zeroAngleDeg = angleSum / static_cast<float>(samples);
-  gyroBiasDps = gyroSum / static_cast<float>(samples);
+  if (!isStationaryCalibration(
+          angleStats, gyroStats, accelMagnitudeStats,
+          IMU_CALIBRATION_MAX_PITCH_STD_DEG,
+          IMU_CALIBRATION_MAX_GYRO_STD_DPS,
+          IMU_CALIBRATION_MIN_ACCEL_NORM_G,
+          IMU_CALIBRATION_MAX_ACCEL_NORM_G,
+          IMU_CALIBRATION_MAX_ACCEL_NORM_STD_G)) {
+    filterInitialized_ = false;
+    return false;
+  }
+
+  zeroAngleDeg = angleStats.mean();
+  gyroBiasDps = gyroStats.mean();
   filteredPitchDeg_ = 0.0f;
   filterInitialized_ = true;
   return true;

@@ -10,13 +10,15 @@ Follow these steps in order. Do not begin autonomous obstacle avoidance until th
 4. Compile for Arduino Uno. Upload with the motor battery disconnected.
 5. Open Serial Monitor at 115200 baud.
 
-## Stage 2 — Verify sensor orientation
+## Stage 2 — Verify sensor orientation and stationary calibration
 
 1. Keep motor power disconnected or wheels safely raised.
 2. Hold the robot upright and motionless during startup calibration (about 3 seconds).
-3. Watch the reported pitch telemetry.
-4. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
-5. If not, correct the IMU orientation/axis mapping before continuing.
+3. The 500-sample calibration checks pitch variation, gyro-rate variation and acceleration magnitude. It rejects excessive motion, vibration or implausible acceleration.
+4. Watch the reported pitch telemetry after calibration.
+5. Tilt the robot's top toward the front: pitch should increase. Tilt it backward: pitch should decrease.
+6. If calibration is rejected, secure the chassis, isolate motor power, check IMU mounting and wiring, then power-cycle and retry.
+7. If pitch direction is wrong, correct the IMU orientation/axis mapping before continuing.
 
 The calibration assumes the chassis is held at its intended upright angle. The IMU must not move during the calibration window.
 
@@ -72,6 +74,7 @@ There is no universal stable PID setting. Mass, centre of gravity, motor torque,
 
 The motor driver is disabled and the fault is latched if:
 - IMU initialization or a runtime read fails
+- IMU startup calibration detects excessive movement, vibration or implausible acceleration
 - absolute pitch exceeds MAX_SAFE_TILT_DEG
 - the control-loop gap exceeds MAX_CONTROL_GAP_US
 
