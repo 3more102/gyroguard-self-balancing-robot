@@ -5,7 +5,8 @@ GyroGuard is a **two-wheel, differential-drive self-balancing robot** for embedd
 ## Included
 
 - 200 Hz MPU-6050 attitude loop with complementary filtering
-- MPU-6050 identity check and stationary-window startup calibration validation
+- MPU-6050 identity check, stationary-window startup calibration validation and bounded I²C transactions
+- PID input guards reject NaN/infinite sensor or timing values and reset controller state safely
 - Inner pitch controller with gyro-rate damping and output limiting
 - 50 Hz wheel-encoder velocity loop (outer loop)
 - Non-blocking HC-SR04 ranging using an AVR pin-change interrupt
@@ -52,10 +53,6 @@ Choose motors whose stall current is within the driver and battery limits. The T
       sonar.h / sonar.cpp
       navigation_policy.h
       obstacle_avoidance.h / obstacle_avoidance.cpp
-    matlab/
-      gyroguard_parameters.m
-      gyroguard_stage2_analysis.m
-      README.md
     docs/
       HARDWARE.md
       COMMISSIONING.md
@@ -63,6 +60,10 @@ Choose motors whose stall current is within the driver and battery limits. The T
       WATCHDOG.md
       MATHEMATICAL_MODEL.md
       MEASUREMENT_WORKSHEET.md
+    matlab/
+      gyroguard_parameters.m
+      gyroguard_stage2_analysis.m
+      README.md
     tests/
       test_pid.cpp
       test_navigation_policy.cpp
@@ -103,6 +104,7 @@ CI runs all host test suites, the Stage 2 model analysis using GNU Octave, and c
 
 - Autonomous movement is **disabled on boot**.
 - The firmware verifies the MPU-6050 identity and rejects unstable or gravity-inconsistent startup calibration samples.
+- MPU-6050 I²C transactions have a 5 ms timeout; a failed transaction causes a latched motor-off fault.
 - The robot calibrates the IMU while it is held upright and stationary.
 - Once calibration succeeds, the balance loop is enabled.
 - Send 'a' over Serial Monitor (115200 baud) to enable autonomous cruise and obstacle avoidance.
@@ -125,12 +127,12 @@ The serial telemetry includes pitch, gyro rate, wheel speed, target angle, motor
 
 ## Stage 2 mathematical model
 
-The repository includes a parameterized sagittal-plane two-wheel inverted-pendulum model. It includes the wheel-side motor torque, the equal-and-opposite motor reaction torque on the chassis, motor back-EMF based on wheel speed relative to the body, and reflected motor-rotor inertia. The MATLAB/Octave script checks the actuation signs, validates the linearized A/B matrices against finite-difference Jacobians, reports open-loop poles and controllability, and compares nonlinear and linearized fall responses.
+The repository includes a parameterized sagittal-plane two-wheel inverted-pendulum model. It includes motor reaction torque on the body, motor back-EMF based on rotor speed relative to the body-mounted stator, and reflected motor-rotor inertia in the coupled mass matrix. The MATLAB/Octave analysis checks the actuation signs, validates the linearized A/B matrices against finite-difference Jacobians, reports open-loop poles and controllability, and compares nonlinear and linearized fall responses.
 
 Run from the repository root:
 
     addpath('matlab');
-    results = gyroguard_stage2_analysis;
+    results = gyroguard_stage2_analysis(false);
 
 The default parameter set is illustrative, not measured. Replace it using docs/MEASUREMENT_WORKSHEET.md before treating numerical results as properties of the physical robot. See docs/MATHEMATICAL_MODEL.md for the derivation and assumptions.
 
