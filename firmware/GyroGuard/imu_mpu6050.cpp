@@ -57,12 +57,12 @@ bool MPU6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gx,
                       int16_t &gy, int16_t &gz) {
   uint8_t b[14];
   if (!readRegisters(REG_ACCEL_XOUT_H, b, sizeof(b))) return false;
-  ax = static_cast<int16_t>((b[0] << 8) | b[1]);
-  ay = static_cast<int16_t>((b[2] << 8) | b[3]);
-  az = static_cast<int16_t>((b[4] << 8) | b[5]);
-  gx = static_cast<int16_t>((b[8] << 8) | b[9]);
-  gy = static_cast<int16_t>((b[10] << 8) | b[11]);
-  gz = static_cast<int16_t>((b[12] << 8) | b[13]);
+  ax = static_cast<int16_t>((static_cast<uint16_t>(b[0]) << 8) | b[1]);
+  ay = static_cast<int16_t>((static_cast<uint16_t>(b[2]) << 8) | b[3]);
+  az = static_cast<int16_t>((static_cast<uint16_t>(b[4]) << 8) | b[5]);
+  gx = static_cast<int16_t>((static_cast<uint16_t>(b[8]) << 8) | b[9]);
+  gy = static_cast<int16_t>((static_cast<uint16_t>(b[10]) << 8) | b[11]);
+  gz = static_cast<int16_t>((static_cast<uint16_t>(b[12]) << 8) | b[13]);
   return true;
 }
 
@@ -75,7 +75,7 @@ bool MPU6050::calibrate(uint16_t samples, float &zeroAngleDeg,
   for (uint16_t i = 0; i < samples; ++i) {
     int16_t ax, ay, az, gx, gy, gz;
     if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
-    const float accelAngle = atan2f(static_cast<float>(ax),
+    const float accelAngle = atan2f(-static_cast<float>(ax),
                                     static_cast<float>(az)) * RAD_TO_DEG_F;
     angleSum += accelAngle;
     gyroSum += static_cast<float>(gy) / GYRO_LSB_PER_DPS;
@@ -96,7 +96,7 @@ bool MPU6050::readPitch(float dtSeconds, float zeroAngleDeg, float gyroBiasDps,
   if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
 
   const float accelAngle =
-      atan2f(static_cast<float>(ax), static_cast<float>(az)) * RAD_TO_DEG_F
+      atan2f(-static_cast<float>(ax), static_cast<float>(az)) * RAD_TO_DEG_F
       - zeroAngleDeg;
   pitchRateDps = static_cast<float>(gy) / GYRO_LSB_PER_DPS - gyroBiasDps;
 
